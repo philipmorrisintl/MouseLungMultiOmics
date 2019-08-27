@@ -1,0 +1,2724 @@
+---
+title: "Multi-omics systems toxicology of lung tissue reveals reduced biological effects of two heat-not-burn tobacco products compared with cigarette smoke"
+author: 
+- name: Bjoern Titz
+  affilnum: '1'
+- name: Justyna Szostak
+  affilnum: '1'
+- name: Alain Sewer
+  affilnum: '1'
+- name: Blaine Phillips
+  affilnum: '2'
+- name: Catherine Nury
+  affilnum: '1'
+- name: Thomas Schneider
+  affilnum: '1'
+- name: Sophie Dijon
+  affilnum: '1'
+- name: Oksana Lavrynenko
+  affilnum: '1'
+- name: Ashraf Elamin
+  affilnum: '1'
+- name: Emmanuel Guedj
+  affilnum: '1'
+- name: Ee Tsin Wong
+  affilnum: '2'
+- name: Stefan Lebrun
+  affilnum: '1'
+- name: Grégory Vuillaume
+  affilnum: '1'
+- name: Athanasios Kondylis
+  affilnum: '1'
+- name: Sylvain Gubian
+  affilnum: '1'
+- name: Stephane Cano
+  affilnum: '1'
+- name: Patrice Leroy
+  affilnum: '1'
+- name: Brian Keppler
+  affilnum: '3'
+- name: Nikolai V. Ivanov
+  affilnum: '1'
+- name: Patrick Vanscheeuwijck
+  affilnum: '1'
+- name: Florian Martin
+  affilnum: '1'
+- name: Manuel C. Peitsch
+  affilnum: '1'
+- name: Julia Hoeng
+  affilnum: '1'
+affiliation:
+- affil: PMI R&D, Philip Morris Products S.A., Quai Jeanrenaud 5, CH-2000 Neuchâtel, Switzerland
+  affilnum: 1
+- affil: Philip Morris International Research Laboratories Pte. Ltd., Science Park II, Singapore
+  affilnum: 2
+- affil: Metabolon Inc., Research Triangle Park, NC, USA
+  affilnum: 3
+abstract:
+  Cigarette smoke (CS) causes adverse health effects. To reduce the risk of smokers developing smoking-related diseases, Philip Morris International is developing candidate modified risk tobacco products (cMRTPs). In a six-month systems toxicology study with ApoE-/- mice, we conducted an integrative multi-omics analysis to assess the effects of aerosols from two cMRTPs, the Carbon Heated Tobacco Product (CHTP) 1.2 and the Tobacco Heating System (THS) 2.2, compared with CS at matched nicotine concentrations. Molecular exposure effects in the lung were measured by mRNA/microRNA transcriptomics, proteomics, metabolomics, and lipidomics. Across all five data modalities, exposure to CS caused substantial effects, including inflammation, an oxidative stress response, and lipid/surfactant alterations. In contrast, effects observed for cMRTP aerosols were much more limited or absent, with reversal of CS-induced effects upon cessation and switching to CHTP 1.2 (after three months of CS exposure). Functional network analysis revealed complex immuno-regulatory interactions induced by CS across the investigated molecular layers (e.g., involving itaconate, quinolinate, and miR-146) and highlighted engagement of the heme–Hmox–bilirubin oxidative stress axis by CS. Overall, this work exemplifies how multi-omics approaches can be leveraged within systems toxicology studies and further supports potentially reduced respiratory health risks of CHTP 1.2 and THS 2.2.
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  pdf_document:
+    toc: true
+    fig_caption: yes
+    keep_tex: yes
+    number_sections: yes
+    template: ../INFO/report.latex
+  html_notebook:
+    toc: true
+editor_options: 
+  chunk_output_type: console
+---
+
+# License
+
+> Copyright 2019 Philip Morris Products SA
+> 
+> This program is free software; you can redistribute it and/or
+> modify it under the terms of the GNU General Public License
+> as published by the Free Software Foundation; either version 2
+> of the License, or (at your option) any later version.
+> 
+> This program is distributed in the hope that it will be useful,
+> but WITHOUT ANY WARRANTY; without even the implied warranty of
+> MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+> GNU General Public License for more details.
+> 
+> You should have received a copy of the GNU General Public License
+> along with this program; if not, write to the Free Software
+> Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+>
+> Also, see Licenses.txt
+  
+  
+For the shared data:
+  
+> This work is licensed under the Creative Commons Attribution 4.0 International License. 
+> To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/ 
+> or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+
+# Background information
+This Rmd file performs the analyses and creates the figures presented in the manuscript *Multi-omics systems toxicology of lung tissue reveals reduced biological effects of two heat-not-burn tobacco products compared with cigarette smoke*. 
+In a six-month systems toxicology study with ApoE-/- mice, we assessed the effects of aerosols from two candidate modified-risk tobacco products, the Carbon Heated Tobacco Product (CHTP) 1.2 and the Tobacco Heating System (THS) 2.2, compared with cigarette smoke (CS) at matched nicotine concentrations. Molecular exposure effects in the lung were measured across five data modalities: mRNA/microRNA transcriptomics, proteomics, metabolomics, and lipidomics.
+
+Analyses include:
+
+* Single-omics analyses, e.g. differential expression analysis, principle component analysis, and causal network enrichment
+* Multi-omics analysis by Multi-Omics Factor Analysis (Argelaguet et al., 2018, 10.15252/msb.20178124) and network-based interpretation
+
+# Setup
+This section defines the basic processing parameters and loads the required R packages.
+
+```{r DefParamsPackages, message=FALSE, warning=FALSE, results='hide', size="scriptsize"}
+# general options
+X11.options(type = "Xlib", bg = "white")
+options(stringsAsFactors = FALSE)
+Sys.setenv(R_MAX_NUM_DLLS = 500)
+
+# load R packages
+library(knitr)
+library(gridExtra)
+library(RColorBrewer)
+library(ggplot2)
+library(egg)
+library(ggpubr)
+library(reshape2)
+library(xlsx)
+library(readxl)
+library(openxlsx)
+library(tools)
+library(plotrix)
+library(gdata)
+library(plyr)
+library(dplyr)
+library(limma)
+library(NPA)
+library(MOFA)
+library(mixOmics)
+library(ggbeeswarm)
+library(stringi)
+library(visNetwork)
+library(PCSF)
+
+#source all functions
+for (fn in list.files("../SCRIPTS/FUNCTIONS", "*.R",full.names = TRUE)) {
+    source(fn)
+}
+
+# study definitions
+script.name <- "P15038_APOE_P2_MultiOmicsManuscript.Rmd"
+study_short_name <- "APOE_P2"
+tissue <- "Lung"
+subset <- "Tissue"
+studynumber <- "P15038"
+species <- "mouse"
+species0 <- as.character(c(rat = "Rn", mouse = "Ms", human = "Hs")[species])
+studyName <- studyname <- paste(studynumber, study_short_name, tissue, subset, sep = "_")
+
+# layout parameters
+volcano_nrow <- 5
+volcano_ncol <- 2
+which_order_volcano <- c(1:6, -1, 7, -1, 8)
+layout_mat_volcano <- getLayoutMatrix(which_order_volcano, norow = volcano_nrow, nocol = volcano_ncol)
+
+colgrps <- matrix(c(
+  "Sham", "Sham", "#0000FF",
+  "3R4F", "3R4F", "#FF0000",
+  "CHTP", "CHTP1.2", "#542788",
+  "THS", "THS2.2", "#998EC3",
+  "Cess", "CESS", "#00B050",
+  "Switch_CHTP", "SWITCH", "#FF9900"
+), byrow = TRUE, ncol = 3, dimnames = list(NULL, c("Group_Name", "Label", "Color")))
+
+# folders & files
+projectBaseDir <- "../"
+RobjectsDir <- file.path(projectBaseDir, "DATA")
+reportDir <- file.path(projectBaseDir, "REPORT")
+#dir.create(reportDir)
+#setwd(projectBaseDir)
+
+debug <- FALSE
+
+# Rerun the analyses or load from file (if available)?
+force_rerun_mofa <- TRUE
+force_rerun_pcsf <- TRUE # requires integrative network & KEGG license
+force_recreate_network <- FALSE # KEGG license required
+
+# rendering options
+opts_chunk$set(dev = 'pdf', 
+               fig.width=6, 
+               fig.height=5, 
+               message=FALSE, 
+               warning=FALSE)
+
+#https://github.com/jhollist/manuscriptPackage
+# Table Captions from @DeanK on http://stackoverflow.com/questions/15258233/
+#  using-table-caption-on-r-markdown-file-using-knitr-to-use-in-pandoc-to-convert-t
+#Figure captions are handled by LaTeX
+knit_hooks$set(tab.cap = function(before, options, envir) {
+                  if(!before) { 
+                    paste('\n\n:', options$tab.cap, sep='') 
+                  }
+                })
+default_output_hook = knit_hooks$get("output")
+knit_hooks$set(output = function(x, options) {
+  if (!is.null(options$tab.cap)) {
+    x
+  } else
+    default_output_hook(x,options)
+})
+#https://stackoverflow.com/questions/25646333/code-chunk-font-size-in-rmarkdown-with-knitr-and-latex
+def.chunk.hook  <- knitr::knit_hooks$get("chunk")
+knitr::knit_hooks$set(chunk = function(x, options) {
+  x <- def.chunk.hook(x, options)
+  ifelse(options$size != "normalsize", paste0("\\", options$size,"\n\n", x, "\n\n \\normalsize"), x)
+})
+
+set.seed(456463)
+
+```
+
+# Import the data
+This section imports the data objects for the five data modalities. The R data objects are located in the
+`r RobjectsDir` folder:
+
+* DATA objects: Quantification results for each omics data modality. List with the following slots:
+    + data: the data matrix (analytes x samples)
+    + I: metadata (sample x covariate)
+    + L: Group annotation
+    + CO: contrast matrix
+* IDMAP object: Differential expression results. Lists with one named element per contrast. Each element is a
+  data.frame, which includes the following columns:
+    + nodeLabel: Name of the analyte (e.g., gene symbol)
+    + foldChange: log2 fold-change
+    + p.value: p-value
+    + adj.p.value: BH-adjusted p-value  
+      
+      
+
+```{r ImportData, message=FALSE, warning=FALSE, results='hide', size="scriptsize"}
+# load idmaps
+idmaps <- list()
+idmaps[["MRNA"]] <- load2(file.path(RobjectsDir, "IDMAP_P15038-S185500_APOE_P2_Lung_Mm_MRNA.rda"))
+idmaps[["METABOLITE"]] <- load2(file.path(RobjectsDir, "IDMAP-Tissue_APOE_P2_Lung_Ms_METABOLOMICS.rda"))
+idmaps[["PROTEIN"]] <- load2(file.path(RobjectsDir, "IDMAP-_APOE_P2_Lung_Mm_PEX.rda"))
+idmaps[["MIRNA"]] <- load2(file.path(RobjectsDir, "IDMAP_P15038-S185500_APOE_P2_Lung_Mm_MIRNA.rda"))
+idmaps[["LIPID"]] <- load2(file.path(RobjectsDir, "IDMAP-P15038-S186400_APOE_P2_Lung_Mm_LIPSG.rda"))
+
+# contrast names (shorten, as all are vs sham)
+idmaps <- lapply(idmaps, function(idmap) {
+  names(idmap) <- gsub(" vs.+", "", gsub("_", " ", names(idmap)), perl = TRUE)
+  return(idmap)
+})
+
+# load dat objects
+dats <- list()
+dats[["MRNA"]] <- load2(file.path(RobjectsDir, "DATA_P15038-S185500_APOE_P2_Lung_Mm_MRNA.rda"))
+dats[["METABOLITE"]] <- load2(file.path(RobjectsDir, "DATA-Tissue_APOE_P2_Lung_Ms_METABOLOMICS.rda"))
+dats[["PROTEIN"]] <- load2(file.path(RobjectsDir, "DATA-_APOE_P2_Lung_Mm_PEX.rda"))
+dats[["LIPID"]] <- load2(file.path(RobjectsDir, "DATA-P15038-S186400_APOE_P2_Lung_Mm_LIPSG.rda"))
+
+dats[["MIRNA"]] <- load2(file.path(RobjectsDir, "DATA_P15038-S185500_APOE_P2_Lung_Mm_MIRNA.rda"))
+rownames(dats[["MIRNA"]]$data) <- as.character(dats[["MIRNA"]]$R[match(rownames(dats[["MIRNA"]]$data), 
+                            as.character(dats[["MIRNA"]]$R$Probe.Set.Name)), "Transcript.ID.Array.Design."])
+```
+
+# Overview of individual omes
+
+```{r OverviewIndividualOmes, message=FALSE, warning=FALSE, size="scriptsize"}
+# number of 'captured' molecules
+res <- lapply(dats, function(x) {
+  X <- x$data
+  X <- X[!apply(X, 1, function(y) all(is.na(y))), ]
+  nrow(X)
+})
+tab_captured_molecules <- as.data.frame(unlist(res))
+colnames(tab_captured_molecules) <- c("Number of molecules")
+
+# Number of DEGs plot
+dat <- do.call(rbind, lapply(names(idmaps), function(x) {
+  no_degs <- sapply(getDEG(idmaps[[x]]), nrow)
+  data.frame(type = x, contrast = names(no_degs), no_degs = as.numeric(no_degs))
+}))
+dat$contrast <- factor(dat$contrast, levels = names(idmaps[["MRNA"]]))
+dat$treatment <- getsplit(dat$contrast, " ", 1)
+dat$type <- factor(paste0(dat$type, "s"), levels = c("MRNAs", "PROTEINs", "METABOLITEs", "MIRNAs", "LIPIDs"))
+tab_de <- dat
+
+cols <- attr(idmaps[["MRNA"]], "colors")
+names(cols) <- names(idmaps[["MRNA"]])
+
+p <- ggplot(aes(x = contrast, y = no_degs), data = dat)
+p <- p + geom_bar(aes(fill = contrast), stat = "identity")
+p <- p + scale_fill_manual("", values = cols, guide = FALSE)
+p <- p + facet_wrap(~type, ncol = 2, scales = "free_y")
+p <- p + theme_bw()
+p <- p + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+p <- p + labs(x = "", y = "# differentially abundant/expressed")
+p <- p + theme(strip.background = element_blank())
+p <- p + theme(strip.text.x = element_text(size = 12, face = "bold"))
+
+P_nodegs <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_NoDEGs_w_lipids.pdf"), width = 7, height = 10)
+print(p)
+dev.off()
+
+# Exports DEGs for Supplement
+degs_list <- lapply(idmaps, function(idmap) {
+  degs <- getDEG(idmap) 
+  do.call(rbind,lapply(names(degs), function(nm) {
+      x <- as.data.frame(degs[[nm]])
+      x <- x[,c("nodeLabel", "foldChange", "t", "df", "p.value", "adj.p.value"), drop = FALSE]
+      if (nrow(x) > 0) {
+        x$contrast <- nm
+      }
+      return(x)
+  }))
+})
+file <- file.path(reportDir, "P15038_LungManuscript_DiffExpression.xlsx")
+openxlsx::write.xlsx(degs_list, file = file)
+
+```
+
+```{r TableCapturedMolecules, results='asis', echo=FALSE, tab.cap="\\label{tab:TableCapturedMolecules} Total number of captured molecules. ",cache=FALSE}
+kable(tab_captured_molecules)
+```
+
+```{r TableDE, results='asis', echo=FALSE, tab.cap="\\label{tab:TableDE} Total number of captured molecules. ",cache=FALSE}
+kable(tab_de)
+```
+
+```{r FigNumberDEGs, echo=FALSE, fig.cap="\\label{fig:FigNumberDEGs} Number of differentially expressed molecules across omics data modalities.", cache=FALSE}
+plot(P_nodegs)
+```
+
+Table \ref{tab:TableCapturedMolecules} lists the total number of captured molecules across the five data modalities. 
+Figure \ref{fig:FigNumberDEGs} shows the number of differentially expressed molecules for each omics data modality. 
+Table \ref{tab:TableDE} lists the number of differentially expressed molecules for each omics data modality.
+
+# Prepare multi-omics data
+In this section, we prepare the multi-omics data set for further analysis. This includes:
+
+* Aligning the five data matrices by unique animal number (CAN) across columns
+* Summarizing available data types per animal
+* Allowing for two missing data modalities for each animal
+* Proteomics data has missing values: filter for proteins with missing values for less than 10% of samples
+* Create multi-omics data list with associated meta data  
+
+
+```{r PrepareMultiOmicsData, message=FALSE, warning=FALSE, size="scriptsize"}
+# mRNA data
+Xmrna <- dats[["MRNA"]]$data
+colnames(Xmrna) <- as.character(dats[["MRNA"]]$I$CAN.PatientID)
+
+# miRNA data
+Xmirna <- dats[["MIRNA"]]$data
+colnames(Xmirna) <- as.character(dats[["MIRNA"]]$I$CAN.PatientID)
+
+# iTRAQ/proteomics data
+Xprot <- dats[["PROTEIN"]]$data
+colnames(Xprot) <- as.character(dats[["PROTEIN"]]$I$Subject.number)
+
+# get CAN
+# original SDMS link not used here to facilitate external reproducibility
+filename <- file.path("../", "INFO", "S186500_NA_LUNG-L_ITRAQ_NA_15038ProteomicsSliceTissue-SampleMetaData.xlsx")
+metadat <- readxl::read_xlsx(filename, sheet = 4) %>% as.data.frame()
+colnames(Xprot) <- metadat[match(colnames(Xprot), metadat$`Child Sample ID`), "CAN/PatientID"]
+# filter for proteins with less than 10% missing values
+perc_not_na <- apply(Xprot, 1, function(x) sum(!is.na(x)) / length(x))
+Xprot <- Xprot[perc_not_na > 0.90, ]
+
+# metabolomics data
+Xmet <- dats[["METABOLITE"]]$data
+colnames(Xmet) <- gsub("S", "", as.character(dats[["METABOLITE"]]$I$ANIMAL_ID))
+
+# lipidomics data
+Xlip <- dats[["LIPID"]]$data
+I <- dats[["LIPID"]]$I
+
+# get CAN
+# original SDMS link not used here to facilitate external reproducibility
+filename <- file.path("../","INFO", "S186400_NA_LUNG-L_NA_NA_15038LipidomicsSliceTissue-SampleMetaData.xlsx")
+metadat <- readxl::read_xlsx(filename, sheet = 4) %>% as.data.frame()
+colnames(Xlip) <- metadat[match(I[, "SAMPLE_ID_1"], metadat$`Child Sample ID`), "CAN/PatientID"]
+
+# get meta data for all samples
+# original SDMS link not used here to facilitate external reproducibility
+filename <- file.path("../","INFO", "15038_NA_NA_NA_NA_SelectedSampleListSysTox.xlsx")
+metadat_all <- readxl::read_xlsx(filename, sheet = 1) %>% as.data.frame()
+metadat_all$TreatmentGroupName <- gsub("THS", "THS2.2", 
+                                       gsub("Switch_CHTP", "SWITCH", 
+                                            gsub("Cess", "CESS", 
+                                                 gsub("^CHTP", "CHTP1.2", metadat_all$TreatmentGroupName))))
+metadat_all$TreatmentGroupName <- factor(metadat_all$TreatmentGroupName,
+                                         levels = unique(metadat_all$TreatmentGroupName))
+
+# summary matrix of available samples
+dat <- rbind(
+  data.frame(type = "MRNA", CAN = colnames(Xmrna), value = TRUE),
+  data.frame(type = "MIRNA", CAN = colnames(Xmirna), value = TRUE),
+  data.frame(type = "PROTEIN", CAN = colnames(Xprot), value = TRUE),
+  data.frame(type = "METABOLITE", CAN = colnames(Xmet), value = TRUE),
+  data.frame(type = "LIPID", CAN = colnames(Xlip), value = TRUE)
+)
+mat <- reshape2::dcast(dat, type ~ CAN, value.var = "value")
+rownames(mat) <- mat$type
+mat <- mat[, -1]
+mat[is.na(mat)] <- 0
+mat[mat == TRUE] <- 1
+
+#Updated to improve readability of sample plot
+#hc <- hclust(dist(t(mat), method = "manhattan"), method = "average")
+#dat$CAN <- factor(dat$CAN, levels = hc$labels[hc$order])
+dat$Group <- metadat_all[match(dat$CAN, metadat_all$`CAN/PatientID`), "TreatmentGroupName"]
+dat$CAN <- with(dat,factor(CAN, levels = unique(CAN[order(Group, CAN)])))
+
+dat$TTT <- getsplit(dat$Group, "_", 1)
+dat$Time <- getsplit(dat$Group, "_", 2)
+
+cols <- colgrps[,"Color"]
+names(cols) <- colgrps[,"Label"]
+
+p <- ggplot(aes(x = CAN, y = type, fill = TTT), data = dat)
+p <- p + geom_tile(na.rm = TRUE)
+p <- p + scale_fill_manual("", values = cols,guide = FALSE, na.value = "grey20")
+p <- p + facet_grid(~Time, scales = "free_x", space = "free_x")
+p <- p + labs(x = "Lung samples", y = "")
+p <- p + theme_bw()
+p <- p + theme(axis.text.x = element_blank())
+p <- p + theme(axis.text.y = element_text(color = "black"))
+p <- p + theme(axis.ticks = element_blank())
+p <- p + theme(plot.background = element_blank())
+p_shared_samples_hm <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_SharedSamples.pdf"), width = 7, height = 2.5)
+    plot(p_shared_samples_hm)
+dev.off()
+
+
+tmp <- as.matrix(table(apply(mat, 2, sum, na.rm = TRUE)))
+tmp2 <- as.numeric(tmp)
+names(tmp2) <- rownames(tmp)
+tmp <- cumsum(rev(tmp2))
+tmp
+dat2 <- data.frame(datasets = names(tmp), samples = tmp)
+p <- ggplot(aes(x = datasets, y = samples), data = dat2)
+p <- p + geom_bar(stat = "identity", colour = "black", fill = "grey30", width = 0.6)
+p <- p + theme_bw()
+p <- p + labs(x = "# data sets", y = "# samples")
+p_shared_samples_cumsum <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_SharedSamplesCumSum.pdf"), width = 3, height = 3)
+plot(p_shared_samples_cumsum)
+dev.off()
+
+# Number of data types per animal
+tab <- table(c(colnames(Xmrna), colnames(Xmirna), colnames(Xprot), colnames(Xmet), colnames(Xlip)))
+
+# allow for two missing data types
+common_samples <- names(tab)[tab >= 3] 
+
+data_list <- list(
+  MRNA = Xmrna[, match(common_samples, colnames(Xmrna))],
+  MIRNA = Xmirna[, match(common_samples, colnames(Xmirna))],
+  PROTEIN = Xprot[, match(common_samples, colnames(Xprot))],
+  MET = Xmet[, match(common_samples, colnames(Xmet))],
+  LIPID = Xlip[, match(common_samples, colnames(Xlip))]
+)
+data_list <- lapply(data_list, function(x) {
+  colnames(x) <- common_samples
+  return(x)
+})
+
+tab_data_dimensions <- as.data.frame(vapply(data_list, nrow, numeric(1)))
+colnames(tab_data_dimensions) <- c("Number of molecules")
+
+# get meta data for all samples
+# original SDMS link not used here to facilitate external reproducibility
+filename <- file.path("../","INFO", "15038_NA_NA_NA_NA_SelectedSampleListSysTox.xlsx")
+metadat <- readxl::read_xlsx(filename, sheet = 1) %>% as.data.frame()
+
+dat_meta <- data.frame(common_samples, metadat_all[match(common_samples, metadat_all$`CAN/PatientID`), "TreatmentGroupName"])
+colnames(dat_meta) <- c("CAN", "Group")
+
+save(data_list, dat_meta, file = file.path(reportDir, "P15038_LungManuscript_data_list.rda"))
+# load(file.path(reportDir, "P15038_LungManuscript_data_list.rda"))
+```
+
+```{r TableDataDimensions, results='asis', echo=FALSE, tab.cap="\\label{tab:TableDataDimensions} Data dimensions. Number of molecules considered for multi-omics analysis. ",cache=FALSE}
+kable(tab_data_dimensions)
+```
+
+```{r FigSharedSamplesHM, echo=FALSE, fig.cap="\\label{fig:FigSharedSamplesHM} Lung samples obtained and analyzed from the same animals across the five omics analyses. A colored cell in the matrix indicates that a lung sample from an animal was analyzed successfully for the given omics data set. Note that only samples from the 3- and 6-month time point were submitted for metabolomics analysis.", cache=FALSE}
+plot(p_shared_samples_hm)
+```
+
+```{r p_shared_samples_cumsum, echo=FALSE, fig.cap="\\label{fig:p_shared_samples_cumsum} Distribution plot showing the number of shared samples across a given number of omics data sets.", cache=FALSE}
+plot(p_shared_samples_cumsum)
+```
+
+Figure \ref{fig:FigSharedSamplesHM} shows the data modalities available for animal, with the number of animals with >= 3, 4, or 5 available data modalities summarized in Figure \ref{fig:p_shared_samples_cumsum}. Table \ref{tab:TableDataDimensions} lists the number of considered molecules across the five data modalities.
+
+# Exposure markers
+
+```{r ExposureMarkerPlots, message=FALSE, warning=FALSE, size="scriptsize"}
+# get current non-omics data compilation
+file <- file.path("../","DATA", "P15038_APOE_P2_Exposure.rda")
+dat_comb <- load2(file)
+dat_comb$Group <- as.character(dat_comb$Group)
+dat_comb <- dat_comb[grep("[56]m", dat_comb$Group), ]
+
+# setup visualization parameters
+grp <- unique(dat_comb$Group)
+grp <- grp[order(
+  getsplit(grp, "-", 3),
+  -as.numeric(factor(getsplit(grp, "-", 4))),
+  c("Sham" = 1, "3R4F" = 2, "CHTP1.2" = 3, "THS2.2" = 4, "CESS" = 5, "SWITCH" = 6, "NA" = 7)[getsplit(grp, " ", 1)],
+  getsplit(grp, " ", 2)
+)]
+grp
+dat_comb$Group <- factor(dat_comb$Group, levels = grp)
+
+cols <- attr(idmaps[["MRNA"]], "colors")
+names(cols) <- names(idmaps[["MRNA"]])
+cols2 <- cols[grep("6m", names(cols))]
+names(cols2) <- gsub("6m", "5m", names(cols2))
+cols <- c(cols, cols2)
+cols3 <- c("blue", "blue")
+names(cols3) <- c("Sham 5m", "Sham 6m")
+cols <- c(cols, cols3)
+
+ep_sel <- c(
+  "Aerosol uptake and exposure|Nicotine metabolites in urine (absolute)|Total metabolites|nmol",
+  "Aerosol uptake and exposure|Marker of exposure in urine (concentration)|3-HPMA|ng/mL",
+  "Aerosol uptake and exposure|Marker of exposure in urine (concentration)|Total NNAL|pg/mL",
+  "Aerosol uptake and exposure|Marker of exposure in urine (concentration)|SPMA|ng/mL",
+  "Aerosol uptake and exposure|Marker of exposure in urine (concentration)|CEMA|ng/mL"
+)
+
+dat_comb <- dat_comb[dat_comb$EndpointMapped %in% ep_sel,]
+range(dat_comb$N)
+
+p_exposure <- list()
+for (ep in ep_sel) {
+  label <- getsplit(ep, "|", 3)
+  unit <- getsplit(ep, "|", 4)
+
+  p <- barchartNonOmicsMouse(dat_comb,
+    ep = ep,
+    laby = paste0(label, " ", unit),
+    cols = cols
+  )
+  
+  p_exposure[[label]] <- p
+
+  filename <- file.path(reportDir, paste0("P15038_Urine_EXPOSURE-", label, ".pdf"))
+  pdf(file = filename, width = 6, height = 6, useDingbats = FALSE)
+  print(p)
+  dev.off()
+}
+
+```
+
+```{r p_exposure, echo=FALSE, fig.cap="\\label{fig:p_exposure} Exposure markers measured in urine.", fig.height=8, cache=FALSE}
+egg::ggarrange(plots = p_exposure, ncol = 3)
+```
+
+Figure \ref{fig:p_exposure} shows exposure markers measured in urine.
+
+# mRNA-protein correlations
+
+```{r mRNAProteinCorrelations, message=FALSE, warning=FALSE, size="scriptsize"}
+# mRNA vs protein correlation (group level)
+idmapM <- lapply(idmaps[["MRNA"]], function(x) {
+  x$nodeLabel <- as.character(x$nodeLabel)
+  x[, c("nodeLabel", "foldChange", "adj.p.value", "p.value", "t", "df", "A", "TTT", "CTRL")]
+})
+idmapP <- lapply(idmaps[["PROTEIN"]], function(x) {
+  x$nodeLabel <- as.character(x$nodeLabel)
+  x[, c("nodeLabel", "foldChange", "adj.p.value", "p.value", "t", "df", "A", "TTT", "CTRL")]
+})
+stopifnot(all(names(idmapM) == names(idmapP)))
+
+molM <- unique(unlist(lapply(idmapM, function(x) as.character(x$nodeLabel))))
+molP <- unique(unlist(lapply(idmapP, function(x) as.character(x$nodeLabel))))
+shared_mols <- intersect(molM, molP)
+
+idmapM <- lapply(idmapM, function(x) {
+  x[match(shared_mols, x$nodeLabel), ]
+})
+idmapP <- lapply(idmapP, function(x) {
+  x[match(shared_mols, x$nodeLabel), ]
+})
+
+dat_list <- lapply(names(idmapM), function(x) {
+  iM <- idmapM[[x]]
+  iP <- idmapP[[x]]
+  stopifnot(all(iM$nodeLabel == iP$nodeLabel))
+  return(data.frame(Symbol = iM$nodeLabel, 
+                    fc_M = iM$foldChange, 
+                    sig_M = iM$adj.p.value < 0.05, 
+                    fc_P = iP$foldChange, 
+                    sig_P = iP$adj.p.value < 0.05, 
+                    Contrast = x))
+})
+dat <- do.call(rbind, dat_list)
+dat$sig_summary <- "None"
+dat$sig_summary[dat$sig_M == TRUE] <- "MRNA"
+dat$sig_summary[dat$sig_P == TRUE] <- "PROTEIN"
+dat$sig_summary[dat$sig_P == TRUE & dat$sig_M == TRUE] <- "BOTH"
+
+dat$Treatment <- getsplit(dat$Contrast, " ", 1)
+dat$Treatment <- factor(dat$Treatment, levels = c("3R4F", "CHTP1.2", "THS2.2", "CESS", "SWITCH"))
+dat$Time <- getsplit(dat$Contrast, " ", 2)
+dat$Time <- factor(dat$Time, levels = c("3m", "4m", "6m"))
+
+
+res <- tapply(1:nrow(dat), dat$Contrast, function(i) {
+  dat_sel <- dat[i, ]
+  dat_sel <- dat_sel[dat_sel$sig_summary != "None", , drop = FALSE]
+  if (nrow(dat_sel) > 10) {
+    res.sum <- summary(lm(fc_P ~ fc_M, data = dat_sel))
+    return(list(r.squared = res.sum$r.squared, intercept = res.sum$coefficients[1, 1], slope = res.sum$coefficients[2, 1]))
+  } else {
+    return(list(r.squared = NA, slope = NA, intercept = NA))
+  }
+})
+stat_sum <- do.call(rbind, lapply(names(res), function(x) {
+  data.frame(
+    Contrast = x,
+    Treatment = factor(getsplit(x, " ", 1), levels = c("3R4F", "CHTP1.2", "THS2.2", "CESS", "SWITCH")),
+    Time = factor(getsplit(x, " ", 2), levels = c("3m", "4m", "6m")),
+    R2 = res[[x]]$r.squared,
+    intercept = res[[x]]$intercept,
+    slope = res[[x]]$slope
+  )
+}))
+stat_sum <- as.data.frame(stat_sum)
+stat_sum$R2_txt <- paste0("R2 = ", sprintf("%2.2f", stat_sum$R2))
+stat_sum$R2_txt[is.na(stat_sum$R2)] <- ""
+
+p <- ggplot(aes(x = fc_M, y = fc_P, colour = sig_summary, size = sig_summary), data = dat)
+p <- p + geom_point()
+p <- p + scale_size_manual("", values = c("BOTH" = 2, "MRNA" = 2, "PROTEIN" = 2, "None" = 1), guide = FALSE)
+p <- p + scale_colour_manual("", values = c("BOTH" = "firebrick2", "MRNA" = "slateblue1", "PROTEIN" = "palegreen4", 
+                                            "None" = "grey30"), guide = FALSE)
+p <- p + geom_vline(xintercept = 0, size = 0.5, colour = "grey50")
+p <- p + geom_hline(yintercept = 0, size = 0.5, colour = "grey50")
+p <- p + geom_abline(aes(slope = slope, intercept = intercept), 
+                     colour = "steelblue", 
+                     size = 0.5, 
+                     data = stat_sum)
+p <- p + geom_text(aes(label = R2_txt), 
+                   colour = "black", 
+                   x = 2, 
+                   y = 1.3, 
+                   hjust = 0, 
+                   size = 4, data = 
+                       stat_sum)
+p <- p + facet_grid(Treatment ~ Time, drop = TRUE)
+p <- p + theme_bw()
+p <- p + labs(x = "log2 fold-change [MRNA]", y = "log2 fold-change [PROTEIN]")
+
+p_scatter_mRNA_Prot <- p
+png(file = file.path(reportDir, "P15038_LungManuscript_Scatter_mRNA_Prot.png"), width = 7, height = 9, units = "in", res = 200)
+print(p)
+dev.off()
+
+p <- ggplot(aes(x = fc_M, y = fc_P, colour = sig_summary, size = sig_summary), 
+            data = droplevels(dplyr::filter(dat, Treatment == "3R4F")))
+p <- p + geom_point()
+p <- p + scale_size_manual("", values = c("BOTH" = 2, "MRNA" = 2, "PROTEIN" = 2, "None" = 1), guide = FALSE)
+p <- p + scale_colour_manual("", values = c("BOTH" = "firebrick2", "MRNA" = "slateblue1", "PROTEIN" = "palegreen4", 
+                                            "None" = "grey30"), guide = FALSE)
+p <- p + geom_vline(xintercept = 0, size = 0.5, colour = "grey50")
+p <- p + geom_hline(yintercept = 0, size = 0.5, colour = "grey50")
+p <- p + geom_abline(aes(slope = slope, intercept = intercept), 
+                     colour = "steelblue", 
+                     size = 0.5, 
+                     data = droplevels(dplyr::filter(stat_sum, Treatment == "3R4F")))
+p <- p + geom_text(aes(label = R2_txt), 
+                   colour = "black", 
+                   x = 2, 
+                   y = 1.3, 
+                   hjust = 0, 
+                   size = 4, 
+                   data = droplevels(dplyr::filter(stat_sum, Treatment == "3R4F")))
+p <- p + facet_grid(Time ~ Treatment, drop = TRUE)
+p <- p + theme_bw()
+p <- p + labs(x = "log2 fold-change [MRNA]", y = "log2 fold-change [PROTEIN]")
+
+p_scatter_mRNA_Prot_3R4Fonly <- p
+
+png(file = file.path(reportDir, "P15038_LungManuscript_Scatter_mRNA_Prot_3R4Fonly.png"), 
+    width = 3.5, height = 7, units = "in", res = 200)
+print(p)
+dev.off()
+```
+
+```{r FigCorrMRNAProt, echo=FALSE, fig.cap="\\label{fig:FigCorrMRNAProt} Correlation between mRNA and protein log2 fold-changes.", cache=FALSE, message=FALSE, warning=FALSE}
+plot(p_scatter_mRNA_Prot)
+```
+
+```{r FigCorrMRNAProt3R4F, echo=FALSE, fig.cap="\\label{fig:FigCorrMRNAProt3R4F} Correlation between mRNA and protein log2 fold-changes.", cache=FALSE, message=FALSE, warning=FALSE}
+plot(p_scatter_mRNA_Prot_3R4Fonly)
+```
+
+Figure \ref{fig:FigCorrMRNAProt} shows the fold-change correlation between mRNA and protein expression, with Figure \ref{fig:FigCorrMRNAProt3R4F} focused on the 3R4F groups.
+
+# Biological impact factor (BIF) for lung
+```{r BIFPlotLung, message=FALSE, warning=FALSE, size="scriptsize"}
+npa_list = load2(file.path(RobjectsDir, "NPALIST_P15038-S185500_APOE_P2_Lung_Mm_MRNA.rda"))
+bif <- get_bif(npa_list)
+
+cols = attr(idmaps[["MRNA"]], "colors")
+names(cols) = names(idmaps[["MRNA"]])
+
+
+filename = file.path(reportDir, "P15038_LungManuscript_BIF.pdf")
+pdf(file = filename, width = 8,height=7)
+  res <- barplot(bif,col = cols, mar = 8, pie = FALSE)
+dev.off()
+
+filename = file.path(reportDir, "P15038_LungManuscript_NPA_HEATMAP.pdf")
+pdf(file = filename, width = 13,height=13)
+  plot(npa_list)
+dev.off()
+
+```
+
+```{r FigLungBIF, echo=FALSE, fig.cap="\\label{fig:FigLungBIF} Evaluation of biological impact on lung tissue using causal network enrichment approach based on transcriptomics data. RBIFs are represented for each group versus Sham comparisons.", cache=FALSE, fig.height=8}
+res <- barplot(bif,col = cols, mar = 8, pie = FALSE)
+```
+
+```{r FigLungNPAHeatmap, echo=FALSE, fig.cap="\\label{fig:FigLungNPAHeatmap} NPA heatmap. NPA heatmap for the lung. The heatmap shows NPAs for each network in the collection, across all conditions.", cache=FALSE, fig.height=10}
+plot(npa_list)
+```
+
+Figure \ref{fig:FigLungBIF} shows the biological impact on lung tissue using causal network enrichment approach and Figure \ref{fig:FigLungNPAHeatmap} the corresponding NPA heatmap.
+
+# Principal component analysis (individual omes)
+```{r PCAs, message=FALSE, warning=FALSE, size="scriptsize"}
+cols <- colgrps[,3]
+names(cols) <- colgrps[,2]
+pca_plots <- lapply(names(data_list), function(x) {
+  view_dat <- t(data_list[[x]])
+  sel <- apply(view_dat, 1, function(y) !all(is.na(y)))
+  view_dat <- view_dat[sel, ]
+  group <- dat_meta[match(rownames(view_dat), dat_meta$CAN), "Group"]
+  cols2 <- cols[getsplit(group,"_",1)]
+  names(cols2) <- group
+  return(pcaGG(view_dat, group = factor(group), cols = cols2, main = x, print = FALSE, annotate = FALSE))
+})
+png(file = file.path(reportDir, "P15038_LungManuscript_PCA_ScorePlots2.png"), width = 11, height = 13, units = "in", res = 200)
+do.call(gridExtra::grid.arrange, c(pca_plots, list(ncol = 2)))
+dev.off()
+```
+
+
+```{r FigPCAs, echo=FALSE, fig.cap="\\label{fig:FigPCAs} PCA score plots.", cache=FALSE, fig.height=8}
+do.call(gridExtra::grid.arrange, c(pca_plots, list(ncol = 2)))
+```
+
+Figure \ref{fig:FigPCAs} shows PCA score plots for the five omics data modalities.
+
+# Multi-omics factor analysis
+## Generate model
+Perform multi-omics factor analysis for the five omice data modalities. Limit number of reported factors to reasonable
+number using a 2% DropFactorThreshold, otherwise go with default parameters.
+
+```{r MOFARun, message=FALSE, warning=FALSE, size="scriptsize"}
+MOFAobject <- createMOFAobject(data_list)
+
+ModelOptions <- getDefaultModelOptions(MOFAobject)
+ModelOptions
+TrainOptions <- getDefaultTrainOptions()
+TrainOptions$seed <- 814279
+TrainOptions$DropFactorThreshold <- 0.02
+TrainOptions
+DataOptions <- getDefaultDataOptions()
+DataOptions
+
+mofa_file <- file.path(reportDir, "P15038_LungManuscript_MOFA2.rda")
+if (!force_rerun_mofa && file.exists(mofa_file)) {
+    load(mofa_file)
+} else {
+  MOFAobject <- prepareMOFA(MOFAobject,
+    DataOptions = DataOptions,
+    ModelOptions = ModelOptions,
+    TrainOptions = TrainOptions
+  )
+  MOFAobject <- runMOFA(MOFAobject)
+  save(MOFAobject, file = mofa_file)
+}
+
+```
+
+
+## Explained variance, score, and loading plots
+```{r MOFAPlots1, message=FALSE, warning=FALSE, size="scriptsize"}
+p_var_explained <- plotVarianceExplained(MOFAobject)
+pdf(file = file.path(reportDir, "P15038_LungManuscript_MOFA_VarianceExplained.pdf"), width = 7, height = 7)
+    print(p_var_explained)
+dev.off()
+
+# alternative stacked barplot for explained variance
+R2_list <- calculateVarianceExplained(MOFAobject)
+fvar_m <- R2_list$R2Total
+fvar_mk <- R2_list$R2PerFactor
+plotdat <- reshape2::melt(fvar_mk)
+colnames(plotdat) <- c("LF", "View", "ExpVar")
+p <- ggplot(aes(x = factor(View, levels = c("MRNA", "PROTEIN", "MET", "MIRNA", "LIPID")), y = ExpVar, fill = LF), data = plotdat)
+p <- p + geom_bar(stat = "identity", width = 0.5)
+p <- p + scale_fill_brewer("LF", palette = "Spectral")
+p <- p + theme_bw()
+p <- p + theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+p <- p + theme(plot.title = element_text(hjust = 0.5))
+p <- p + labs(x = "", y = "explained variance", title = "MOFA")
+p_var_explained_bars <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_MOFA_VarianceExplainedBars.pdf"), width = 5, height = 5)
+    plot(p_var_explained_bars)
+dev.off()
+
+# export weights
+res <- MOFA::getWeights(MOFAobject)
+fn <- file.path(reportDir, "P15038_LungManuscript_MOFA_AllWeights.rda")
+save(res, file = fn)
+
+# Top weights
+pdf(file = file.path(reportDir, "P15038_LungManuscript_MOFA_TopWeights.pdf"), width = 9, height = 8)
+for (data_type in c("PROTEIN", "MRNA", "MIRNA", "LIPID", "MET")) {
+  for (LF in 1:3) {
+    plot(plotTopWeights(MOFAobject, data_type, LF, nfeatures = 30) + labs(title = data_type))
+  }
+}
+dev.off()
+
+# Scatter Pairs
+grp <- sapply(strsplit(as.character(dat_meta$Group), "_"), function(x) x[[1]])
+tp <- sapply(strsplit(as.character(dat_meta$Group), "_"), function(x) x[[2]])
+
+cols <- colgrps[match(unique(grp), colgrps[, 2]), "Color"]
+names(cols) <- unique(grp)
+
+p <- plotFactorScatters2(MOFAobject, factors = 1:10, color_by = grp, shape_by = factor(tp), col_values = cols)
+p_scatter_pairs <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_MOFA_FactorsScatterPairs.pdf"), width = 15, height = 15)
+print(p_scatter_pairs)
+dev.off()
+
+# LF1 score beeswarm
+Z <- getFactors(MOFAobject,
+  factors = 1,
+  as.data.frame = TRUE
+)
+Z$Group <- dat_meta[match(Z$sample, dat_meta$CAN), "Group"]
+Z$Treatment <- getsplit(Z$Group, "_", 1)
+Z$Time <- getsplit(Z$Group, "_", 2)
+
+p <- ggplot(aes(x = 0, y = value, colour = Treatment, shape = Time), data = Z)
+p <- p + ggbeeswarm::geom_quasirandom()
+
+cols <- colgrps[match(unique(Z$Treatment), colgrps[, 2]), "Color"]
+names(cols) <- unique(Z$Treatment)
+
+p <- p + scale_colour_manual("Treatment", values = cols)
+p <- p + theme_bw()
+p <- p + theme(
+  axis.text.x = element_blank(),
+  axis.ticks.x = element_blank(),
+  plot.title = element_text(hjust = 0.5)
+)
+p <- p + labs(title = "MOFA", x = "", y = "score LF1")
+p_LF1_score_beeswarm <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_MOFA_LF1_ScoresByGroup.pdf"), width = 3.5, height = 3.5, useDingbats = FALSE)
+plot(p_LF1_score_beeswarm)
+dev.off()
+```
+
+```{r FigMOFAVarExpl, echo=FALSE, fig.cap="\\label{fig:FigMOFAVarExpl} Explained variance across omics data modalities and latent factors.", cache=FALSE}
+plot(p_var_explained)
+``` 
+ 
+ 
+```{r FigMOFAVarExplBar, echo=FALSE, fig.cap="\\label{fig:FigMOFAVarExplBar} Explained variance across omics data modalities and latent factors.", cache=FALSE}
+plot(p_var_explained_bars)
+```
+ 
+ 
+```{r FigMOFAScatterPairs, echo=FALSE, fig.cap="\\label{fig:FigMOFAScatterPairs} LF score pairs.", cache=FALSE}
+print(p_scatter_pairs)
+``` 
+ 
+ 
+```{r FigMOFALF1Beeswarm, echo=FALSE, fig.cap="\\label{fig:FigMOFALF1Beeswarm} LF1 scores.", cache=FALSE}
+plot(p_LF1_score_beeswarm)
+```
+
+Figure \ref{fig:FigMOFAVarExpl} and Figure \ref{fig:FigMOFAVarExplBar} show variance explained by the MOFA model
+across the data modalities and discovered latent factors (LFs). Figure \ref{fig:FigMOFAScatterPairs} shows the pair-wise
+LF score plots, highlighting LF1 as the LF that separates the exposure groups.  Figure \ref{fig:FigMOFALF1Beeswarm} shows
+the scores for LF1.
+
+## GSEA for biological interpretation of LF1
+```{r MOFAGSEA, message=FALSE, warning=FALSE, size="scriptsize"}
+# functional annotation --> GSEA
+gsc_file <- readLines(file.path("..","DATA", "EXTERNAL", "ReactomePathways_23Apr2018.gmt"))
+gsc <- do.call(rbind, lapply(gsc_file, function(x) {
+  ss <- strsplit(x, "\t", fixed = TRUE)[[1]]
+  genes <- ss[seq(3, length(ss))]
+  gs <- ss[1]
+  data.frame(Gene = genes, GS = gs)
+}))
+gsc <- piano::loadGSC(gsc)
+
+weight_list <- MOFA::getWeights(MOFAobject)
+fgsea.res <- lapply(c("MRNA", "PROTEIN"), function(view) {
+  geneLevelStats <- weight_list[[view]][, "LF1"]
+  names(geneLevelStats) <- getsplit(names(geneLevelStats), "_", 1)
+  names(geneLevelStats) <- GetOrtholog(names(geneLevelStats), species_from = "Mm", species_to = "Hs")
+  geneLevelStats <- geneLevelStats[!is.na(names(geneLevelStats))]
+  geneLevelStats <- tapply(geneLevelStats, names(geneLevelStats), function(x) x[which.max(abs(x))])
+
+  set.seed(23489)
+  piano.res <- piano::runGSA(
+    geneLevelStats = geneLevelStats,
+    geneSetStat = "fgsea",
+    signifMethod = "geneSampling",
+    adjMethod = "fdr",
+    ncpus = 1,
+    gsc = gsc,
+    gsSizeLim = c(5, Inf)
+  )
+  piano::GSAsummaryTable(piano.res)
+})
+names(fgsea.res) <- c("MRNA", "PROTEIN")
+filename <- file.path(reportDir, "P15038_LungManuscript_MOFA_LF1_FGSEA.rda")
+save(fgsea.res, file = filename)
+
+# tables
+for (view in c("MRNA", "PROTEIN")) {
+  filename <- file.path(reportDir, paste0("P15038_LungManuscript_MOFA_FGSEA_LF1_", view, ".csv"))
+  write.csv(fgsea.res[[view]], file = filename)
+}
+
+# figures
+p_MOFA_GSEA_figures <- list()
+for (view in c("MRNA", "PROTEIN")) {
+  tab <- fgsea.res[[view]]
+  tab <- tab[tab$"p adj (dist.dir.up)" < 0.05 | tab$"p adj (dist.dir.dn)" < 0.05, ]
+  tab$pval <- ifelse(!is.na(tab$"p (dist.dir.up)"), tab$"p (dist.dir.up)", tab$"p (dist.dir.dn)")
+  sort_order <- order(tab$pval, decreasing = FALSE)
+  tab <- tab[sort_order, ]
+  tab <- tab[1:20, ]
+  colnames(tab)[3] <- "Stat"
+  tab$Name <- factor(tab$Name, levels = rev(tab$Name))
+
+  p <- ggplot(aes_string(x = "Name", y = "Stat", fill = "pval"), data = tab)
+  p <- p + geom_bar(stat = "identity")
+  # p = p + scale_y_log10()
+  p <- p + ggplot2::coord_flip()
+  p <- p + theme_bw()
+  p <- p + labs(y = "Stat", x = "", title = view)
+  p <- p + theme(axis.text = element_text(size = 8, colour = "black"))
+  p <- p + theme(axis.title = element_text(size = 8, colour = "black", face = "bold"))
+  p_MOFA_GSEA_figures[[view]] <- p
+
+  filename <- file.path(reportDir, paste0("P15038_LungManuscript_MOFA_FGSEA_LF1_", view, ".pdf"))
+  pdf(file = filename, width = 7, height = 5)
+  print(p)
+  dev.off()
+}
+```
+
+```{r FigMOFAGSEA, echo=FALSE, fig.cap="\\label{fig:FigMOFAGSEA} LF1 scores.", cache=FALSE, fig.height=8}
+egg::ggarrange(plots = p_MOFA_GSEA_figures, ncol = 1)
+```
+
+Figure \ref{fig:FigMOFAGSEA} shows the TOP 20 GSEA-enriched gene sets by p-value for the Reactome collection.
+
+## LF1 vs inflammatory cells in BALF
+```{r MOFABALFCorrelation, message=FALSE, warning=FALSE, size="scriptsize"}
+## correlate / compare scores with total cells in BALF (group averages)
+stat_dat <- load2(file.path("../","DATA", "P15038_APOE_P2_BALF_cells.rda"))
+# head(stat_dat)
+stat_dat <- stat_dat[stat_dat$Endpoint_Sub_Cat == "FLC differentiation (count)" & 
+                         stat_dat$Endpoint_Name == "Total cells", ]
+stat_dat$Group <- paste0(gsub("Switch CHTP", "SWITCH", 
+                              gsub("Cessation", "CESS", stat_dat$Treatment_Order)), "_", 
+                         gsub("M", "m", stat_dat$Dissection_Order))
+unique(stat_dat$Group)
+
+Z <- getFactors(MOFAobject,
+  factors = 1,
+  as.data.frame = TRUE
+)
+Z$Group <- dat_meta[match(Z$sample, dat_meta$CAN), "Group"]
+Z$Treatment <- getsplit(Z$Group, "_", 1)
+Z$Time <- getsplit(Z$Group, "_", 2)
+
+stopifnot(all(Z$Group %in% stat_dat$Group))
+
+Z_avg <- Z %>% dplyr::group_by(Group, Treatment, Time) %>% dplyr::summarise(mean_score = mean(value, na.rm = TRUE))
+Z_avg <- as.data.frame(Z_avg)
+Z_avg$TotalCells <- stat_dat[match(Z_avg$Group, stat_dat$Group), "Endpoint_Value_Mean"]
+
+p <- ggplot(aes(x = mean_score, y = TotalCells), data = Z_avg)
+p <- p + geom_point(aes(colour = Treatment, shape = Time), size = 2)
+p <- p + geom_smooth(method = "lm", data = Z_avg, formula = y ~ x)
+p <- p + theme_bw()
+p <- p + labs(x = "mean MOFA score [comp. 1]", y = "mean Total cells in BALF [10E5]")
+
+cols <- colgrps[, "Color"]
+names(cols) <- colgrps[, "Label"]
+p <- p + scale_colour_manual("Treatment", values = cols)
+
+p_MOFA_BALF_correlation <- p
+
+filename <- file.path(reportDir, "P15038_LungManuscript_MOFA_TotalCells_Scatter.pdf")
+pdf(file = filename, width = 4.4, height = 3.5, useDingbats = FALSE)
+print(p_MOFA_BALF_correlation)
+dev.off()
+```
+
+```{r FigMOFABALFCorr, echo=FALSE, fig.cap="\\label{fig:FigMOFABALFCorr} LF1 vs BALF cells.", cache=FALSE}
+plot(p_MOFA_BALF_correlation)
+```
+
+Figure \ref{fig:FigMOFABALFCorr} compares average LF1 and BALF cell counts across the exposure groups.
+
+# sGCCA: complement MOFA approach
+```{r sGCCA, message=FALSE, warning=FALSE, size="scriptsize"}
+
+# for definition of data_list, see above
+data_list2 <- lapply(data_list, function(x) t(x))
+lapply(data_list2, dim)
+
+# design matrix for sGCCA
+design <- matrix(1,
+  ncol = length(data_list), nrow = length(data_list),
+  dimnames = list(names(data_list), names(data_list))
+)
+diag(design) <- 0
+design
+
+ncomp <- 8
+# set number of variables to select, per component and per data set (fixed to 30)
+list.keepX <- list(MRNA = rep(30, ncomp), 
+                   MIRNA = rep(30, ncomp), 
+                   PROTEIN = rep(30, ncomp), 
+                   MET = rep(30, ncomp), 
+                   LIPID = rep(30, ncomp))
+
+set.seed(342897)
+res.block.spls <- block.spls(
+  X = data_list2, indY = 4,
+  ncomp = ncomp, keepX = list.keepX, design = design, mode = "canonical",
+  max.iter = 1000
+)
+# res.block.spls
+
+res <- selectVar(res.block.spls, comp = 1)
+
+# stacked barplot for explained variance
+fvar_mk <- do.call(cbind, res.block.spls$explained_variance)
+rownames(fvar_mk) <- gsub("comp ", "", rownames(fvar_mk))
+plotdat <- reshape2::melt(fvar_mk)
+colnames(plotdat) <- c("LF", "View", "ExpVar")
+p <- ggplot(aes(x = factor(View, levels = c("MRNA", "PROTEIN", "MET", "MIRNA", "LIPID")), 
+                y = ExpVar, fill = factor(LF, levels = 1:8)), data = plotdat)
+p <- p + geom_bar(stat = "identity", width = 0.5)
+p <- p + scale_fill_brewer("LF", palette = "Spectral")
+p <- p + theme_bw()
+p <- p + theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+p <- p + theme(plot.title = element_text(hjust = 0.5))
+p <- p + labs(x = "", y = "explained variance", title = "sGCCA")
+p_sGCCA_expl_var <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_sGCCA_VarianceExplainedBars.pdf"), width = 3, height = 3.2)
+plot(p_sGCCA_expl_var)
+dev.off()
+
+#score plots
+groups <- dat_meta[match(rownames(data_list2[[1]]), dat_meta$"CAN"), "Group"]
+TTT <- factor(getsplit(groups, "_", 1), levels = colgrps[, 2])
+TIME <- factor(getsplit(groups, "_", 2))
+
+fn <- file.path(reportDir, "P15038_LungManuscript_sGCCA_SCORE-PLOT.pdf")
+pdf(file = fn, width = 12, height = 9, useDingbats = FALSE)
+plotIndiv(res.block.spls,
+            group = TTT, 
+            col.per.group = colgrps[match(levels(TTT), colgrps[, 2]), "Color"],
+            pch = TIME,
+            ind.names = FALSE, 
+            legend = TRUE, 
+            ellipse = FALSE
+            )
+dev.off()
+
+# LF score beeswarm for each block
+Z <- do.call(rbind, lapply(names(res.block.spls$variates), function(x) {
+  vars <- res.block.spls$variates[[x]]
+  data.frame(block = x, sample = rownames(vars), value = as.numeric(vars[, "comp 1"]))
+}))
+Z$Group <- dat_meta[match(Z$sample, dat_meta$CAN), "Group"]
+Z$Treatment <- getsplit(Z$Group, "_", 1)
+Z$Time <- getsplit(Z$Group, "_", 2)
+Z$block <- factor(Z$block, levels = c("MRNA", "PROTEIN", "MET", "MIRNA", "LIPID"))
+
+p <- ggplot(aes(x = 0, y = value, colour = Treatment, shape = Time), data = Z)
+p <- p + ggbeeswarm::geom_quasirandom()
+
+cols <- colgrps[match(unique(Z$Treatment), colgrps[, 2]), "Color"]
+names(cols) <- unique(Z$Treatment)
+p <- p + scale_colour_manual("Treatment", values = cols)
+
+p <- p + facet_wrap(~block, ncol = 2)
+
+p <- p + theme_bw()
+p <- p + theme(
+  axis.text.x = element_blank(),
+  axis.ticks.x = element_blank(),
+  plot.title = element_text(hjust = 0.5)
+)
+p <- p + labs(title = "sGCCA", x = "", y = "score LF1")
+p_sGCCA_LF1_beeswarm <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_sGCCA_LF1_ScoresByGroup.pdf"), 
+    width = 7, height = 7, useDingbats = FALSE)
+plot(p_sGCCA_LF1_beeswarm)
+dev.off()
+
+# illustrates coefficient weights in each block
+fn <- file.path(reportDir, "P15038_LungManuscript_sGCCA_LOADINGS-PLOT.pdf")
+pdf(file = fn, width = 12, height = 12)
+plotLoadings(res.block.spls, ncomp = 1)
+dev.off()
+```
+
+```{r FigSGCCAScores, echo=FALSE, fig.cap="\\label{fig:FigSGCCAScores} sGCCA score plots.", cache=FALSE}
+plotIndiv(res.block.spls,
+            group = TTT, 
+            col.per.group = colgrps[match(levels(TTT), colgrps[, 2]), "Color"],
+            pch = TIME,
+            ind.names = FALSE, 
+            legend = TRUE, 
+            ellipse = FALSE
+            )
+```
+
+
+```{r FigSGCCAScoreLF1, echo=FALSE, fig.cap="\\label{fig:FigSGCCAScoreLF1} sGCCA score plot for LF1.", cache=FALSE}
+plot(p_sGCCA_LF1_beeswarm)
+```
+
+Figure \ref{fig:FigSGCCAScores} shows the score plots for the sGCCA appraoch, with Figure \ref{fig:FigSGCCAScoreLF1} 
+focussing on the LF1 scores.
+
+
+# MOFA vs sGCCA
+```{r MOFAsGCCAComparison, message=FALSE, warning=FALSE, size="scriptsize"}
+## compare loadings / weights between SGCCA and MOFA
+weights_sgcca <- selectVar(res.block.spls, comp = 1)
+fn <- file.path(reportDir, "P15038_LungManuscript_MOFA_AllWeights.rda")
+weights_mofa <- load2(fn)
+
+# compare score rankings
+plots <- list()
+res_list <- list()
+for (view in names(weights_mofa)) {
+  dat <- weights_sgcca[[view]]$value
+  dat$rank_sgcca <- sign(dat$value.var) * order(abs(dat$value.var), decreasing = TRUE)
+
+  tmp <- weights_mofa[[view]][order(abs(weights_mofa[[view]][, "LF1"]), decreasing = TRUE), , drop = FALSE]
+  tmp <- data.frame(tmp)
+  tmp$rank <- sign(tmp[, "LF1"]) * seq_len(nrow(tmp))
+
+  dat$rank_mofa <- tmp$rank[match(rownames(dat), rownames(tmp))]
+
+  dat$x <- abs(dat$rank_sgcca)
+  dat$y <- abs(dat$rank_mofa)
+  dat$x_sign <- sign(dat$rank_sgcca)
+  dat$y_sign <- sign(dat$rank_mofa)
+  dat$xy_sign <- ifelse(dat$x_sign * dat$y_sign == 1, "same", "opposite")
+
+  p <- ggplot(aes(x = x, y = y, colour = xy_sign), data = dat)
+  p <- p + geom_point(size = 2)
+  p <- p + scale_colour_manual("Sign", values = c("same" = "red", "opposite" = "blue"))
+  p <- p + theme_bw()
+  p <- p + labs(x = "rank sGCCA [LF1]", y = "rank MOFA [LF1]", title = view)
+
+  plots[[view]] <- p
+
+  tmp <- dat[, c("rank_sgcca", "rank_mofa")]
+  tmp$analyte <- rownames(tmp)
+  tmp$view <- view
+  res_list[[view]] <- tmp
+}
+
+filename <- file.path(reportDir, "P15038_LungManuscript_MOFA_sGCCA_Comparison.pdf")
+pdf(file = filename, width = 8, height = 10, useDingbats = FALSE)
+gridExtra::grid.arrange(grobs = plots, cols = 2)
+dev.off()
+
+res_dat <- do.call(rbind, res_list)
+filename <- file.path(reportDir, "P15038_LungManuscript_MOFA_sGCCA_Comparison.csv")
+write.csv(res_dat, file = filename, row.names = FALSE)
+```
+
+```{r FigMOFASGCCAComp, echo=FALSE, fig.cap="\\label{fig:FigMOFASGCCAComp} Comparison of loadings between MOFA and sGCCA approach.", fig.height = 8, cache=FALSE}
+gridExtra::grid.arrange(grobs = plots, cols = 2)
+```
+
+Figure \ref{fig:FigMOFASGCCAComp} compares the loadings between the MOFA and sGCCA approach.
+
+# Network-assisted interpretation of LF1
+## Create network
+```{r NetworkInterpretationCreate, message=FALSE, warning=FALSE, size="scriptsize"}
+if (force_recreate_network) {
+    #  * Sub-Section * Create metabolite network
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   
+    # Prepare KEGG
+    reaction_dat <- readr::read_delim("../DATA/EXTERNAL/reaction_mapformula.lst", " ", col_names = FALSE) %>% as.data.frame()
+    reaction_dat[reaction_dat$X1 == "R00005:", ]
+    colnames(reaction_dat) <- c("rxn_ID", "pwy", "cpn_ID1", "dir", "cpn_ID2")
+    reaction_dat$rxn_ID <- gsub(":", "", reaction_dat$rxn_ID)
+    reaction_dat$pwy <- gsub(":", "", reaction_dat$pwy)
+    reaction_dat <- reaction_dat[, -2]
+    reaction_dat <- unique(reaction_dat)
+    head(reaction_dat)
+    dim(reaction_dat)
+    
+    reaction_ko <- readr::read_delim("DATA/EXTERNAL/reaction_ko.list", "\t", col_names = FALSE) %>% as.data.frame()
+    colnames(reaction_ko) <- c("rxn_ID", "ko_ID")
+    reaction_ko[] <- lapply(reaction_ko, function(x) gsub(".+:", "", x))
+    head(reaction_ko)
+    reaction_dat <- dplyr::left_join(reaction_dat, reaction_ko, by = c("rxn_ID" = "rxn_ID"))
+    head(reaction_dat)
+    
+    # read mouse gene mapping
+    gene_dat <- readr::read_delim("../DATA/EXTERNAL/T01002.kff", "\t", col_names = FALSE) %>% as.data.frame()
+    head(gene_dat)
+    reaction_dat$gene_Mm <- gene_dat[match(reaction_dat$ko_ID, gene_dat$X10), "X8"]
+    reaction_dat <- reaction_dat[!is.na(reaction_dat$gene_Mm), ]
+    dim(reaction_dat)
+    
+    # read compound data mapping
+    compound_dat <- readr::read_delim("../DATA/EXTERNAL/cmp_extracted.table.txt", "\t", col_names = FALSE) %>% 
+        as.data.frame()
+    colnames(compound_dat) <- c("cpn_ID", "names")
+    compound_dat$label <- getsplit(compound_dat$names, ";", 1)
+    reaction_dat$cpn_lab1 <- compound_dat[match(reaction_dat$cpn_ID1, compound_dat$cpn_ID), "label"]
+    reaction_dat$cpn_lab2 <- compound_dat[match(reaction_dat$cpn_ID2, compound_dat$cpn_ID), "label"]
+    head(reaction_dat)
+    
+    # graph with gene and metabolite nodes
+    g1_tab <- reaction_dat[, c("cpn_ID1", "gene_Mm")]
+    g2_tab <- reaction_dat[, c("cpn_ID2", "gene_Mm")]
+    colnames(g1_tab) <- colnames(g2_tab) <- c("cpn_ID", "gene_Mm")
+    g_tab <- rbind(g1_tab, g2_tab)
+    g_tab <- unique(g_tab)
+    g_met <- igraph::graph.data.frame(g_tab, directed = FALSE, vertices = NULL)
+    
+    #  * Sub-Section * Create StringDB network
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    string_mapping <- readr::read_tsv(file.path("../","DATA", "EXTERNAL", "10090.protein.aliases.v10.5.txt"),
+      col_types = "ccc", col_names = c("STRINGID", "ID", "SOURCE"),
+      skip = 1
+    ) %>% as.data.frame()
+    dim(string_mapping)
+    head(string_mapping)
+    
+    sel <- grep("Ensembl_EntrezGene", string_mapping$SOURCE, fixed = TRUE)
+    notsel <- grep("Ensembl_EntrezGene_synonym", string_mapping$SOURCE, fixed = TRUE)
+    sel <- setdiff(sel, notsel)
+    string_mapping <- string_mapping[sel, ]
+    
+    string_net <- readr::read_delim(file.path("../","DATA", "EXTERNAL", "10090.protein.links.detailed.v10.5.txt"), " ",
+      col_types = "cciiiiiiii",
+      col_names = c("protein1", "protein2", "neighborhood", 
+                    "fusion", "cooccurence", "coexpression", 
+                    "experimental", "database", "textmining", "combined_score"),
+      skip = 1
+    ) %>% as.data.frame()
+    dim(string_net)
+    head(string_net)
+    string_net <- string_net[string_net$combined_score > 700, ] # high confidence defined by StringDB
+    dim(string_net)
+    string_net$Symbol1 <- string_mapping[match(string_net$protein1, string_mapping$STRINGID), "ID"]
+    string_net$Symbol2 <- string_mapping[match(string_net$protein2, string_mapping$STRINGID), "ID"]
+    string_net <- string_net[!is.na(string_net$Symbol1) & !is.na(string_net$Symbol2), ]
+    string_net <- string_net[, c(11, 12, 10, 1:9)]
+    dim(string_net)
+    head(string_net)
+    # make unique
+    KEY <- apply(string_net, 1, function(x) {
+      ifelse(x["Symbol1"] < x["Symbol2"],
+        paste0(x["Symbol1"], "-", x["Symbol2"]),
+        paste0(x["Symbol2"], "-", x["Symbol1"])
+      )
+    })
+    string_net <- string_net[!duplicated(KEY), ]
+    dim(string_net)
+    
+    g_string <- igraph::graph.data.frame(string_net, directed = FALSE, vertices = NULL)
+    g_string
+    
+    #  * Sub-Section * Prepare miRNA network
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # miRTarBase
+    # http://mirtarbase.mbc.nctu.edu.tw/php/download.php
+    dat <- read.xlsx2(file.path("../","DATA", "EXTERNAL", "mirTarBase_Mm_10July2018.xls"), sheetIndex = 1)
+    
+    dat <- dat %>%
+      group_by(miRTarBase.ID, miRNA, Target.Gene) %>%
+      summarize(
+        Experiments = paste0(Experiments, collapse = "//"),
+        no_refs = length(unique(References..PMID.))
+      )
+    dat <- as.data.frame(dat)
+    toMatch <- toupper(c("Western blot", "Reporter assay", "qRT-PCR"))
+    dat$no_hc <- stri_count_regex(toupper(dat$Experiments), paste(toMatch, collapse = "|"))
+    head(dat)
+    dat <- dat %>% dplyr::filter(no_refs > 1, no_hc > 1) %>% as.data.frame()
+    dat <- dat[, c(2, 3, 1, 4:6)]
+    
+    g_mirna <- igraph::graph.data.frame(dat, directed = FALSE, vertices = NULL)
+    g_mirna
+    
+    #  * Sub-Section *  Define weights and combine
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # check naming alignment
+    V(g_met)$name[V(g_met)$name == "Acod1"] <- "Irg1"
+    
+    # define weights
+    E(g_met)$weight <- 0.1
+    E(g_string)$weight <- 1 - (E(g_string)$combined_score / 1000) + 0.1
+    E(g_mirna)$weight <- 0.1
+    
+    g_comb <- igraph::union(g_met, g_string, g_mirna, byname = TRUE)
+    class(g_comb)
+    g_comb
+    
+    E(g_comb)$weight <- ifelse(is.na(E(g_comb)$weight_1), E(g_comb)$weight_2, E(g_comb)$weight_1)
+    E(g_comb)$weight <- ifelse(is.na(E(g_comb)$weight_3), E(g_comb)$weight, E(g_comb)$weight_3)
+    
+    summary(E(g_comb)$weight)
+    
+    file <- file.path(reportDir, "P15038_LungManuscript_IntegrNetwork.rda")
+    save(g_comb, file = file)
+} else {
+    if (force_rerun_pcsf) {
+        file <- file.path(reportDir, "P15038_LungManuscript_IntegrNetwork.rda")
+        if (!file.exists(file)) {
+            stop("Need integrated network to rerun PCSF (required KEGG license to create/share)")
+        }
+        g_comb <- load2(file)
+    } else {
+      cat("Integrated network not needed (PCSF not rerun)\n")  
+    }
+     compound_dat <- readr::read_delim("../DATA/EXTERNAL/cmp_extracted.table.txt", "\t", col_names = FALSE) %>% 
+            as.data.frame()
+        colnames(compound_dat) <- c("cpn_ID", "names")
+        compound_dat$label <- getsplit(compound_dat$names, ";", 1)
+}
+```
+
+## PCSF-derived network
+```{r NetworkInterpretationPCSF, message=FALSE, warning=FALSE, size="scriptsize"}
+max_terminal_view <- 200
+res <- lapply(names(weights_mofa), function(view) {
+  lval <- abs(weights_mofa[[view]][, "LF1"])
+  lval <- lval / sum(lval)
+  sel <- which(lval > 2 * 1 / length(lval))
+  if (length(sel) > max_terminal_view) {
+    return(lval[sel][order(lval[sel], decreasing = TRUE)[seq_len(max_terminal_view)]])
+  } else {
+    return(lval[sel])
+  }
+})
+names(res) <- names(weights_mofa)
+lapply(res, length)
+
+# fix names
+Imet <- dats[["METABOLITE"]]$I_metabolite
+names(res[["MET"]]) <- Imet[match(names(res[["MET"]]), Imet$BIOCHEMICAL), "KEGG"]
+nm <- names(res[["MET"]])
+res[["MET"]] <- res[["MET"]][nm != "" & !is.na(nm)]
+
+names(res[["PROTEIN"]]) <- getsplit(names(res[["PROTEIN"]]), "_", 1)
+nm <- names(res[["PROTEIN"]])
+res[["PROTEIN"]] <- res[["PROTEIN"]][nm != "" & !is.na(nm)]
+
+lipid2kegg <- read.csv("../DATA/P15038_LungManuscript_LipidMappingTable3_bt.csv")
+names(res[["LIPID"]]) <- gsub(" ", "", gsub("\xa0", "", lipid2kegg[match(names(res[["LIPID"]]), 
+                                                                         lipid2kegg$Name_PMI), "KEGG"]))
+nm <- names(res[["LIPID"]])
+res[["LIPID"]] <- res[["LIPID"]][nm != "" & !is.na(nm)]
+res[["LIPID"]] <- tapply(res[["LIPID"]], names(res[["LIPID"]]), mean, na.rm = TRUE)
+
+terminals <- c(res[["PROTEIN"]], res[["MRNA"]], res[["MET"]], res[["MIRNA"]], res[["LIPID"]])
+terminals <- tapply(unname(terminals), names(terminals), function(x) max(x))
+
+set.seed(4823972)
+test_grid <- expand.grid(omega = seq(0.20, 1, by = 0.2), beta = c(100, 200, 400, 1000, 2000), 
+                         stringsAsFactors = FALSE)
+test_grid$label <- paste0(sprintf("%02d", 1:nrow(test_grid)), ":w=", 
+                          test_grid[, "omega"], ",b=", test_grid[, "beta"])
+
+file <- file.path(reportDir, "P15038_LungManuscript_Network_PCSF.rda")
+if (!force_rerun_pcsf && file.exists(file)) {
+    pcsf.res <- load2(file)
+} else {
+    pcsf.res <- lapply(1:nrow(test_grid), function(i) {
+      cat(i, "\n")
+      subnet <- PCSF(g_comb,
+        terminals,
+        w = test_grid[i, "omega"],
+        b = test_grid[i, "beta"],
+        mu = 0.0005
+      )
+      return(subnet)
+    })
+    save(pcsf.res, file = file)
+}
+
+stat <- unlist(lapply(pcsf.res, function(g) {
+  comps <- components(g)
+  comps$no
+}))
+dat <- data.frame(no_trees = stat)
+dat <- cbind(test_grid, dat)
+p <- ggplot(aes(x = label, y = no_trees, fill = beta, colour = omega), data = dat)
+p <- p + geom_bar(stat = "identity")
+p <- p + scale_fill_distiller(type = "seq", palette = "Purples", direction = 1)
+p <- p + scale_colour_distiller(type = "seq", palette = "Greens", direction = 1)
+p <- p + theme_bw()
+p <- p + labs(x = "", y = "#trees")
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+p1 <- p
+
+stat <- unlist(lapply(pcsf.res, function(g) {
+  sum(names(terminals) %in% V(g)$name) / length(terminals) * 100
+}))
+dat <- data.frame(terminals_percent = stat)
+dat <- cbind(test_grid, dat)
+p <- ggplot(aes(x = label, y = terminals_percent, fill = beta, colour = omega), data = dat)
+p <- p + geom_bar(stat = "identity")
+p <- p + scale_fill_distiller(type = "seq", palette = "Purples", direction = 1)
+p <- p + scale_colour_distiller(type = "seq", palette = "Greens", direction = 1)
+p <- p + theme_bw()
+p <- p + labs(x = "", y = "terminals %")
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+p2 <- p
+
+stat_dat <- do.call(rbind, lapply(1:length(pcsf.res), function(i) {
+  g <- pcsf.res[[i]]
+  comps <- components(g)
+  data.frame(testrun = as.character(i), comp = as.character(1:length(comps$csize)), no_elements = comps$csize)
+}))
+test_grid2 <- test_grid
+test_grid2$testrun <- as.character(rownames(test_grid2))
+stat_dat <- left_join(stat_dat, test_grid2, by = "testrun")
+
+p <- ggplot(aes(x = label, y = no_elements, fill = comp), data = stat_dat)
+p <- p + geom_bar(stat = "identity", colour = "black")
+# p = p + scale_fill_distiller(type = "seq", palette = "Purples", direction = 1)
+# p = p + scale_colour_distiller(type = "seq", palette = "Greens", direction = 1)
+p <- p + theme_bw()
+p <- p + labs(x = "", y = "nodes per component")
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+p3 <- p
+
+file <- file.path(reportDir, "P15038_LungManuscript_Network_PCSF_stats.png")
+png(file = file, units = "in", res = 200, width = 7, height = 14)
+gridExtra::grid.arrange(p1, p2, p3, ncol = 1)
+dev.off()
+
+# SELECT PARAMS
+# 18: w = 0.6; b = 1000
+# rational:
+#   - low number but not only single tree
+#   - good coverage of terminals (close to saturation)
+
+# run randomized version
+seltest <- 18
+set.seed(423987823)
+
+file <- file.path(reportDir, "P15038_LungManuscript_Network_PCSF_final.rda")
+if (!force_rerun_pcsf && file.exists(file)) {
+    subnet_final <- load2(file)
+} else {
+    subnet_final <- PCSF_rand(g_comb, terminals, n = 10, r = 0.1, w = test_grid[seltest, "omega"], 
+                              b = test_grid[seltest, "beta"], mu = 0.0005)
+    save(subnet_final, file = file)
+}
+
+subnet_final2 <- subnet_final
+sel <- grepl("^C\\d{5}", V(subnet_final2)$name)
+V(subnet_final2)[sel]$name <- compound_dat[match(V(subnet_final2)[sel]$name, compound_dat$cpn_ID), "label"]
+
+res_network_enrich <- enrichment_analysis(subnet_final2)
+file <- file.path(reportDir, "P15038_LungManuscript_PCSF_network_final_enrich.rda")
+save(res_network_enrich, file = file)
+```
+
+```{r FigPCSFParamSel, echo=FALSE, fig.cap="\\label{fig:FigPCSFParamSel} Grid-search results for PCSF-based network identification.", fig.height = 8, cache=FALSE}
+gridExtra::grid.arrange(p1, p2, p3, ncol = 1)
+```
+
+Figure \ref{fig:FigPCSFParamSel} shows the grid-search results for PCSF-based network identification. Based on these results,
+we selected condition #18 (w = 0.6; b = 1000) for functional interpretation of the multi-omics links. The rational for
+the selection was to end up with a low number of trees (but not only a single tree) and a good coverage of terminals (close to saturation).
+
+```{r NetworkInterpretationVisualize, message=FALSE, warning=FALSE, size="scriptsize"}
+# alternative visualization
+subnet <- res_network_enrich$subnet
+edge_width <- 8
+node_size <- 30
+node_label_cex <- 1
+Terminal_node_legend <- "Terminal"
+Steiner_node_legend <- "Steiner"
+
+V(subnet)$label.cex <- node_label_cex
+
+# prize = abs(V(subnet)$prize)
+# min1 = 10
+# max1 = node_size
+# r1 = max1 - min1
+# min2 = min(prize)
+# max2 = max(prize)
+# r2 = max2 - min2
+# adjusted_prize = r1 * (prize - min2)/r2 + min1
+# V(subnet)$size = adjusted_prize
+V(subnet)$size <- node_size
+
+weight <- E(subnet)$weight
+min1 <- 2
+max1 <- edge_width
+r1 <- max1 - min1
+min2 <- min(weight)
+max2 <- max(weight)
+r2 <- max2 - min2
+adjusted_weight <- r1 * (weight - min2) / r2 + min1
+E(subnet)$width <- adjusted_weight
+
+V(subnet)$borderWidth <- 1
+V(subnet)$borderWidth <- ifelse(V(subnet)$type == "Steiner", 1, 3)
+
+V(subnet)$mol_type <- "gene/protein"
+V(subnet)$mol_type[grepl("-miR-", V(subnet)$name)] <- "miRNA"
+V(subnet)$mol_type[V(subnet)$name %in% compound_dat$label] <- "compound"
+
+# shape = V(subnet)$type
+# shape[which(shape == "Steiner")] = "triangle"
+# shape[which(shape == "Terminal")] = "square"
+V(subnet)$shape <- c(
+  "gene/protein" = "square",
+  "miRNA" = "triangle",
+  "compound" = "dot"
+)[V(subnet)$mol_type]
+
+# create graph plot
+gvp <- visIgraph(subnet) %>%
+  visIgraphLayout(
+    layout = "cluster_layout", # "cluster_layout", #layout_with_fr
+    randomSeed = 47839,
+    sel_weights = c(0.5, 0.05)
+  ) %>%
+  visOptions(highlightNearest = list(enabled = TRUE), selectedBy = "group") %>%
+  visLegend(
+    addNodes = list(
+      list(
+        label = "gene/protein",
+        shape = "square",
+        size = 10,
+        label.cex = 0.3
+      ),
+      list(
+        label = "miRNA",
+        shape = "triangle",
+        size = 10,
+        label.cex = 0.3
+      ),
+      list(
+        label = "compound",
+        shape = "dot",
+        size = 10,
+        label.cex = 0.3
+      ),
+      list(
+        label = "terminal",
+        shape = "square",
+        size = 10,
+        borderWidth = 3,
+        label.cex = 0.3
+      )
+    ),
+    width = 0.2, useGroups = FALSE
+  ) %>%
+  visNodes(scaling = list(label = list(enabled = FALSE)))
+
+# save graph plot
+file <- file.path(getwd(),"../","REPORT", "P15038_LungManuscript_PCSF_network.html")
+gvp %>% visSave(file = file)
+
+file2 <- file.path(reportDir, "P15038_LungManuscript_PCSF_network.rda")
+save(gvp, file = file2)
+
+# load(file2)
+# file3 = file.path(reportDir, "P15038_LungManuscript_PCSF_network.pdf")
+# gvp %>% visExport(type = "png", name = "export-network",
+#                   float = "left", label = "Save network", background = "white", style= "")
+# poor resolution
+
+# plot directly with igraph
+subnet2 <- subnet
+V(subnet2)$shape <- c(
+  "square" = "square",
+  "triangle" = "csquare",
+  "dot" = "circle"
+)[V(subnet2)$shape]
+V(subnet2)$size <- 5
+V(subnet2)$label.font <- 1
+V(subnet2)$label.font[V(subnet)$type == "Terminal"] <- 2
+
+V(subnet2)$edge.curved <- TRUE
+
+set.seed(34234)
+layout <- cluster_layout(subnet2, sel_weights = c(0.5, 0.05))
+layout[, 2] <- -layout[, 2]
+
+grp_cols <- colorRampPalette(brewer.pal(9, "Set2"))(length(unique(V(subnet2)$group)))
+names(grp_cols) <- unique(V(subnet2)$group)
+V(subnet2)$color <- grp_cols[V(subnet2)$group]
+
+file <- file.path(reportDir, "P15038_LungManuscript_PCSF_network.pdf")
+pdf(file = file, width = 17, height = 15)
+plot.igraph(subnet2, layout = layout)
+legend("right", legend = names(grp_cols), fill = grp_cols, title = "Groups", horiz = FALSE)
+dev.off()
+
+# Only show labels for examples in main figure
+subnet3 <- subnet2
+sel_molecules_0 <- c("Irg1",
+                   "Blvrb",
+                   "mmu-miR-34a-5p",
+                   "Pla2g2d",
+                   "Sat1")
+sel_molecules <-  names(unlist(ego(subnet3, nodes = sel_molecules_0)))
+
+sel <- which(V(subnet3)$name %in% sel_molecules)
+V(subnet3)$name[-sel] <- ""
+
+file <- file.path(reportDir, "P15038_LungManuscript_PCSF_network_example_sel_labels.pdf")
+pdf(file = file, width = 17, height = 15)
+plot.igraph(subnet3, layout = layout, vertex.label.cex= 2)
+legend("right", legend = names(grp_cols), fill = grp_cols, title = "Groups", horiz = FALSE)
+dev.off()
+
+# plot select neighborhoods
+for (sel_mol in sel_molecules_0) {
+  sel <-  unlist(ego(subnet2, nodes = sel_mol, order = 2))
+  sg <- induced_subgraph(subnet2, sel)
+  
+  set.seed(34234)
+  layout2 <- cluster_layout(sg, sel_weights = c(0.5, 0.05))
+  layout2[, 2] <- -layout2[, 2]
+
+  file <- file.path(reportDir, paste0("P15038_LungManuscript_PCSF_network_mol_", sel_mol, ".pdf"))
+  pdf(file = file, width = 5, height = 5)
+  plot.igraph(induced_subgraph(subnet2, sel) , layout = layout2)
+  # legend("right",legend=names(grp_cols),fill=grp_cols, title = "Groups", horiz = FALSE)
+  dev.off()
+}
+
+# also plot full clusters
+for (gr in unique(V(subnet2)$group)) {
+  sel <- which(V(subnet2)$group == gr)
+  file <- file.path(reportDir, paste0("P15038_LungManuscript_PCSF_network_cl", gr, ".pdf"))
+  pdf(file = file, width = 17, height = 15)
+  plot.igraph(induced_subgraph(subnet2, sel) , layout = layout[sel,])
+  # legend("right",legend=names(grp_cols),fill=grp_cols, title = "Groups", horiz = FALSE)
+  dev.off()
+}
+```
+
+
+```{r FigPCSFNetwork, echo=FALSE, fig.cap="\\label{fig:FigPCSFNetwork} Aggregated gene–protein–metabolite–miRNA network for LF 1 constructed using the PCSF algorithm.", cache=FALSE}
+plot.igraph(subnet3, layout = layout)
+legend("right", legend = names(grp_cols), fill = grp_cols, title = "Groups", horiz = FALSE)
+```
+
+Figure \ref{fig:FigPCSFNetwork} shows the derived multi-omics response network.
+
+##  GSEA for functional interpretation of clusters
+```{r NetworkInterpretationClusters, message=FALSE, warning=FALSE, size="scriptsize"}
+# cluster annotation using reactome db
+gsc_file <- readLines("../DATA/EXTERNAL/ReactomePathways_23Apr2018.gmt")
+gsc <- do.call(rbind, lapply(gsc_file, function(x) {
+  ss <- strsplit(x, "\t", fixed = TRUE)[[1]]
+  genes <- ss[seq(3, length(ss))]
+  gs <- ss[1]
+  data.frame(Gene = genes, GS = gs)
+}))
+gsc <- piano::loadGSC(gsc)
+
+global_universe <- unique(unlist(lapply(gsc$gsc, function(x) x)))
+subnet <- res_network_enrich$subnet
+grp <- V(subnet)$group
+enrich_res <- lapply(unique(grp), function(gr) {
+  genes <- GetOrtholog(V(subnet)[V(subnet)$group == gr]$name, species_from = "Mm", species_to = "Hs")
+  genes <- unique(genes[!is.na(genes)])
+  if (length(genes) > 5) {
+        set.seed(209438)
+        res_tab <- piano::runGSAhyper(genes, universe = global_universe, gsc = gsc, gsSizeLim = c(5, Inf))$resTab
+  } else {
+    res_tab <- NULL
+  }
+  return(res_tab)
+})
+names(enrich_res) <- unique(grp)
+file <- file.path(reportDir, "P15038_LungManuscript_PCSF_network_final_ORA_clusters.rda")
+save(enrich_res, file = file)
+
+enrich_res <- lapply(enrich_res, function(er) er[er[, "Adjusted p-value"] < 0.05, , drop = FALSE])
+# enrich_res <- enrich_res[!sapply(enrich_res, is.null)]
+
+enrich_res_sum <- do.call(rbind, lapply(unique(V(subnet)$group), function(gr) {
+  nodes <- paste0(V(subnet)[V(subnet)$group == gr]$name, collapse = ";")
+  er <- enrich_res[[gr]]
+  if (!is.null(er) && nrow(er) > 0) {
+    er <- er[order(er[, "Adjusted p-value"], decreasing = FALSE), , drop = FALSE]
+  }
+  er <- paste0(rownames(er), " (",
+    sprintf("%.2E", er[, "Adjusted p-value"]),
+    ")",
+    collapse = "|"
+  )
+  er <- gsub("()", "", er, fixed = TRUE)
+  data.frame(Cluster = gr, Nodes = nodes, GeneSets = er)
+}))
+file <- file.path(reportDir, "P15038_LungManuscript_PCSF_network_final_CLUSTER_TABLE.csv")
+write.csv(enrich_res_sum, file = file)
+
+# Cluster annotation based on enrichment results:
+cluster_annotation_table <- matrix(c("Cl01", "Lipid metabolism",
+                                     "Cl02", "",
+                                     "Cl03", "",
+                                     "Cl04", "Xenobiotic metabolism",
+                                     "Cl05", "Xenobiotic metabolism",
+                                     "Cl06", "",
+                                     "Cl07", "Immune-related",
+                                     "Cl08", "Immune-related",
+                                     "Cl09", "Nucleotide metabolism",
+                                     "Cl10", "Immune-related",
+                                     "Cl11", "Carbohydrate metabolism",
+                                     "Cl12", "Immune-related",
+                                     "Cl13", "Polyamine metabolism",
+                                     "Cl14", "Immune-related",
+                                     "Cl15", "Oxidative-stress response",
+                                     "Cl16", "",
+                                     "Cl17", "Lipid metabolism",
+                                     "Cl18", "Lipid metabolism",
+                                     "Cl19", "Immune-related",
+                                     "Cl20", "Extracellular matrix",
+                                     "Cl21", ""), 
+                                   ncol = 2, byrow = TRUE)
+cluster_annotation_table <- as.data.frame(cluster_annotation_table)
+colnames(cluster_annotation_table) <- c("Cluster", "General category")
+
+file <- file.path(reportDir, "P15038_LungManuscript_PCSF_network_final_CLUSTER_ANNOT_TABLE.csv")
+write.csv(cluster_annotation_table, file = file)
+
+```
+
+
+```{r TableClusterAnnotations, results='asis', echo=FALSE, tab.cap="\\label{tab:TableClusterAnnotations} General functional annotations for clusters (based on ORA results). ",cache=FALSE}
+kable(cluster_annotation_table)
+```
+Table \ref{fig:TableClusterAnnotations} lists the proposed cluster annotations based on the ORA results.
+
+## Response profiles
+```{r NetworkInterpretationResponseProfiles, message=FALSE, warning=FALSE, size="scriptsize"}
+#  * Sub-Section * Response profiles for clusters
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+subnet <- res_network_enrich$subnet
+subnet_final2 <- subnet_final
+V(subnet_final2)$group <- V(subnet)$group
+
+Imet <- dats[["METABOLITE"]]$I_metabolite
+
+grps <- V(subnet_final2)$group
+names(grps) <- V(subnet_final2)$name
+grps <- sort(grps)
+
+# align
+
+# start with combined heatmaps
+# lapply(idmaps, function(x) names(x))
+all_contrasts <- names(idmaps[["MRNA"]])
+X_list <- lapply(names(idmaps), function(x) {
+  apm <- getIDMAPentry(idmaps[[x]], entry = "adj.p.value")
+  fcm <- getIDMAPentry(idmaps[[x]], entry = "foldChange")
+
+  rn <- rownames(apm)
+  if (x == "PROTEIN") {
+    rn <- getsplit(rn, "_", 1)
+  } else if (x == "METABOLITE") {
+    rn <- Imet[match(rn, Imet$BIOCHEMICAL), "KEGG"]
+  }
+  sel <- which(!is.na(rn) & rn != "")
+
+  # go by sum effect for collapsing
+  sum_fc <- apply(fcm, 1, sum, na.rm = TRUE)
+  sel <- unlist(tapply(sel, rn[sel], function(y) {
+    if (length(y) == 1) {
+      return(y)
+    } else {
+      return(sel[which.max(sum_fc[sel])])
+    }
+  }))
+  apm <- apm[sel, match(all_contrasts, colnames(apm))]
+  fcm <- fcm[sel, match(all_contrasts, colnames(fcm))]
+  rownames(apm) <- rownames(fcm) <- rn[sel]
+  colnames(apm) <- colnames(fcm) <- all_contrasts
+
+  return(list(apm = apm, fcm = fcm))
+})
+names(X_list) <- names(idmaps)
+
+res_list <- list()
+for (gr in unique(grps)) {
+  sel_mol <- names(grps)[grps == gr]
+  label_lookup <- c(
+    "MRNA" = "mRNA",
+    "METABOLITE" = "met",
+    "PROTEIN" = "prot",
+    "MIRNA" = "miR",
+    "LIPID" = "lip"
+  )
+  X_list_sel <- lapply(names(X_list), function(x) {
+    rn <- rownames(X_list[[x]]$apm)
+    apm <- X_list[[x]]$apm[rn %in% sel_mol, , drop = FALSE]
+    fcm <- X_list[[x]]$fcm[rn %in% sel_mol, , drop = FALSE]
+    if (nrow(apm) > 0) {
+      rn <- rownames(fcm)
+      if (x == "METABOLITE") {
+        rn <- Imet[match(rn, Imet$KEGG), "BIOCHEMICAL"]
+      }
+      rownames(apm) <- rownames(fcm) <- paste0(label_lookup[x], "|", rn)
+    }
+    return(list(fcm = fcm, apm = apm))
+  })
+  apm <- do.call(rbind, lapply(X_list_sel, function(x) x$apm))
+  sigm <- apm
+  sigm[] <- NA
+  sigm[apm < 0.05] <- 8
+  fcm <- do.call(rbind, lapply(X_list_sel, function(x) x$fcm))
+
+  file <- file.path(reportDir, paste0("P15038_LungManuscript_PCSF_Cluster_HM_", gr, ".pdf"))
+  pdf(file = file, width = 6, height = 2 + 3 * (nrow(fcm) / 40))
+  ImagePlotGG(fcm,
+    textmat = sigm,
+    title = paste0("Cluster ", gr),
+    useSymbols = TRUE,
+    symbol_labels = c("fdr < 0.05", "NS")
+  )
+  dev.off()
+
+  # create summary stats for cluster
+  dat <- reshape2::melt(apm)
+  colnames(dat) <- c("Analyte", "Contrast", "fdr")
+  dat$ome <- getsplit(dat$Analyte, "|", 1)
+  dat2 <- reshape2::melt(fcm)
+  stopifnot(all((dat$Analyte == dat2$Var1)) && all(dat$Contrast == dat2$Var2))
+  dat$fc <- dat2$value
+  res <- dat %>%
+    group_by(Contrast) %>%
+    summarise(
+      perc_signif = sum(fdr < 0.05, na.rm = TRUE) / n(),
+      mean_effect = mean(fc, na.rm = TRUE)
+    ) %>%
+    as.data.frame()
+  res$grp <- gr
+  res_list[[gr]] <- res
+}
+res <- do.call(rbind, res_list)
+res$Contrast <- factor(res$Contrast, levels = all_contrasts)
+res$Cluster <- paste0("Cl", sprintf("%02d", res$grp))
+res$Cluster <- factor(res$Cluster, levels = rev(unique(res$Cluster)))
+
+p <- ggplot(aes(x = Contrast, y = Cluster), data = res)
+p <- p + geom_tile(aes(fill = mean_effect))
+col3 <- c(brewer.pal(n = 9, "Blues")[rev(c(2, 5, 9))], "white", brewer.pal(n = 9, "YlOrRd")[c(2, 5, 9)])
+
+max_val <- 1.1 * max(abs(res$mean_effect), na.rm = TRUE)
+values <- seq(-max_val, max_val, length = length(col3) + 1)
+p <- p + scale_fill_gradientn(
+  colours = col3, name = "",
+  limits = c(-max_val, max_val), na.value = "grey60"
+) +
+  scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0))
+
+p <- p + geom_point(aes(colour = perc_signif), size = 6)
+p <- p + scale_colour_distiller(palette = "Greys", direction = 1)
+
+p <- p + labs(x = "", y = "")
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+p <- p + theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+p <- p + geom_vline(xintercept = c(3, 6, 9, 11) + 0.5, colour = "black", size = 1)
+p_PCSF_cluster_summary <- p
+
+file <- file.path(reportDir, "P15038_LungManuscript_PCSF_Cluster_Summary.pdf")
+pdf(file = file, width = 6, height = 8, useDingbats = FALSE)
+print(p_PCSF_cluster_summary)
+dev.off()
+
+# also indicate functional categories
+colnames(cluster_annotation_table) <- gsub(" ", "_", colnames(cluster_annotation_table))
+cluster_annotation_table$Cluster <- factor(cluster_annotation_table$Cluster, levels = rev(cluster_annotation_table$Cluster))
+cluster_annotation_table[cluster_annotation_table == ""] <- NA
+p2 <- ggplot(aes(x = 1, y = Cluster, fill = General_category), data = cluster_annotation_table)
+p2 <- p2 + geom_tile()
+p2 <- p2 + scale_fill_brewer(type = "q", palette = "Set3")
+p2 <- p2 + labs(x = "", y = "")
+p2 <- p2 + theme_minimal()
+p2 <- p2 + theme(panel.background = element_blank(),
+                 panel.grid = element_blank(),
+                 axis.text = element_blank())
+
+file <- file.path(reportDir, "P15038_LungManuscript_PCSF_Cluster_Summary_Annot.pdf")
+pdf(file = file, width = 10, height = 8, useDingbats = FALSE)
+print(ggpubr::ggarrange(plotlist = list(p_PCSF_cluster_summary, p2),
+          ncol = 2, widths = c(8,4), align = "h", 
+          common.legend = FALSE,
+          legend = "right"))
+dev.off()
+
+# also export data table
+file <- file.path(reportDir, "P15038_LungManuscript_PCSF_Cluster_Summary.csv")
+write.csv(res, file = file)
+
+```
+
+```{r FigPCSFNetworkClusterSum, echo=FALSE, fig.cap="\\label{fig:FigPCSFNetworkClusterSum} Expression profiles for identified clusters.", cache=FALSE}
+print(p_PCSF_cluster_summary)
+```
+
+Figure \ref{fig:FigPCSFNetworkClusterSum} shows the response profiles of the identified clusters.
+
+# Metabolite and miRNA changes associated with 3R4F CS-induced immune response
+## Network enrichment analysis for the Macrophage Signaling network
+```{r MacrophageNPA, message=FALSE, warning=FALSE, size="scriptsize"}
+nw_name <- "IPN / Macrophage Signaling"
+sel_nw <- which(npa_list$networks() == nw_name)
+npa <- subset(npa_list, sel_nw, NULL)
+
+file <- file.path(reportDir, "P15038_LungManuscript_Macrophage_NPA.pdf")
+pdf(file = file, width = 5, height = 6, useDingbats = FALSE)
+barplot(npa, 
+        legend.text = FALSE,
+        col = attr(idmaps[["MRNA"]], "colors"),
+        bg = "white",
+        main = nw_name)
+dev.off()
+
+```
+
+```{r FigNPAMPSignaling, echo=FALSE, fig.cap="\\label{fig:FigNPAMPSignaling} Network enrichment analysis for the Macrophage Signaling network.", cache=FALSE}
+barplot(npa, 
+        legend.text = FALSE,
+        col = attr(idmaps[["MRNA"]], "colors"),
+        bg = "white",
+        main = nw_name)
+```
+
+Figure \ref{fig:FigNPAMPSignaling} shows the network enrichment analysis for the Macrophage Signaling network.
+
+## Itaconate metabolic pathway & correlations 
+```{r ItaconateFigures, message=FALSE, warning=FALSE, size="scriptsize"}
+
+#  * Sub-Section * Itaconate metabolic network
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+col <- attr(idmaps[["MRNA"]], "colors")
+names(col) <- names(idmaps[["MRNA"]])
+
+sel_matrix <- matrix(c(
+  "MRNA", "Irg1",
+  "MRNA", "Aco1",
+  "MRNA", "Aco2",
+  "MRNA", "Idh1",
+  "MRNA", "Idh2",
+  "METABOLITE", "itaconate",
+  "METABOLITE", "citrate",
+  "METABOLITE", "alpha-ketoglutarate"
+),
+byrow = TRUE, ncol = 2
+)
+
+p_itaconate_pathway <- list()
+for (i in 1:nrow(sel_matrix)) {
+  idmap_sel <- idmaps[[sel_matrix[i, 1]]]
+  gene_sel <- sel_matrix[i, 2]
+
+  dat <- data.frame(
+    fc = as.numeric(getFromIDMAP(idmap_sel, gene_sel, type = "foldChange", exact = TRUE)),
+    apv = as.numeric(getFromIDMAP(idmap_sel, gene_sel, type = "adj.p.value", exact = TRUE)),
+    contrasts = names(idmap_sel)
+  )
+  dat$sig <- ifelse(dat$apv < 0.05, "*", "")
+  dat$contrasts <- factor(dat$contrasts, levels = dat$contrasts)
+  
+  p <- ggplot(aes(x = contrasts, y = fc, fill = contrasts), data = dat) +
+    geom_bar(stat = "identity", width = 0.7) +
+    scale_fill_manual("", values = col, guide = FALSE) +
+    geom_text(aes(x = contrasts, y = fc + (max(abs(fc)) / 30 * sign(fc)), label = sig), data = dat, colour = "black") +
+    labs(x = "", y = "log2 fold-change", title = gene_sel) +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+  p1 <- p +
+    theme(
+      axis.text = element_blank(),
+      axis.title = element_blank(),
+      axis.ticks = element_blank(),
+      panel.grid = element_blank()
+    )
+  p_itaconate_pathway[[gene_sel]] <- p1
+  
+  file <- file.path(reportDir, paste0("P15038_LungManuscript_ItaconatePathwayExpression_", gene_sel, ".png"))
+  png(file = file, width = 2, height = 2, res = 200, units = "in")
+  print(p1)
+  dev.off()
+}
+
+#  * Sub-Section * Itaconate / Irg1 correlation
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dat <- data.frame(
+  x = data_list[["MRNA"]]["Irg1", ],
+  y = data_list[["MET"]]["itaconate", ],
+  CAN = colnames(data_list[["MRNA"]])
+)
+dat$Group <- dat_meta[match(dat$CAN, dat_meta$CAN), "Group"]
+dat$Treatment <- getsplit(dat$Group, "_", 1)
+dat$Time <- getsplit(dat$Group, "_", 2)
+
+corr_txt <- paste0("Corr = ", sprintf("%2.2f", cor(dat$x, dat$y, use = "pairwise.complete", method = "pearson")))
+
+p <- ggplot(aes(x = x, y = y), data = dat) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  # scale_colour_manual("Treatment", values = cols) +
+  theme_bw() +
+  labs(x = "Irg1 [mRNA]", y = "itaconate") +
+  xlim(4, 7) +
+  ylim(-3, 4) +
+  ggplot2::annotate("text", 4, 3.5, label = corr_txt, hjust = 0)
+
+p_itaconate_mRNAvsMET <- p
+
+file <- file.path(reportDir, "P15038_LungManuscript_Itaconate_mRNAvsMET.pdf")
+pdf(file = file, width = 4, height = 4, useDingbats = FALSE)
+print(p_itaconate_mRNAvsMET)
+dev.off()
+
+#  * Sub-Section *  global itaconate correlations
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+res.cor <- WGCNA::cor(t(data_list[["MRNA"]]), t(data_list[["MET"]]), use = "pairwise.complete.obs")
+filename <- file.path(reportDir, "P15038_LungManuscript_ResCor_MRNA_MET.rda")
+save(res.cor, file = filename)
+
+res_melt <- reshape2::melt(res.cor)
+res_melt <- res_melt[abs(res_melt$value) > 0.8, ]
+dim(res_melt)
+res_melt <- res_melt[order(abs(res_melt$value), decreasing = TRUE), ]
+
+tmp <- res.cor[, "itaconate"]
+tmp <- tmp[order(abs(tmp), decreasing = TRUE)][1:10]
+tmp <- data.frame(Name = names(tmp), Cor = tmp)
+tmp$Name <- factor(tmp$Name, levels = rev(tmp$Name))
+
+p1 <- ggplot(aes(x = Name, y = Cor), data = tmp) +
+  geom_bar(stat = "identity", width = 0.6, fill = "#54b75c") +
+  theme_bw() +
+  labs(x = "", y = "correlation", title = "itaconate vs. mRNA") +
+  theme(axis.text = element_text(size = 10)) +
+  coord_flip()
+
+tmp <- res.cor["Irg1", ]
+tmp <- tmp[order(abs(tmp), decreasing = TRUE)][1:10]
+tmp <- data.frame(Name = names(tmp), Cor = tmp)
+tmp$Name <- factor(tmp$Name, levels = rev(tmp$Name))
+
+p2 <- ggplot(aes(x = Name, y = Cor), data = tmp) +
+  geom_bar(stat = "identity", width = 0.6, fill = "steelblue") +
+  theme_bw() +
+  labs(x = "", y = "correlation", title = "Irg1 vs. metabolites") +
+  theme(axis.text = element_text(size = 10)) +
+  coord_flip()
+
+file <- file.path(reportDir, "P15038_LungManuscript_Itaconate_cor.pdf")
+pdf(file = file, width = 9, height = 5, useDingbats = FALSE)
+gridExtra::grid.arrange(p1, p2, layout_matrix = matrix(c(1, 2, 2), ncol = 3))
+dev.off()
+```
+
+```{r FigItaconatePathway, echo=FALSE, fig.cap="\\label{fig:FigItaconatePathway} Itaconate metabolic pathway.", fig.height = 8, cache=FALSE}
+egg::ggarrange(plots = p_itaconate_pathway, ncol = 3)
+``` 
+ 
+ 
+
+```{r FigItaconateCorrelation, echo=FALSE, fig.cap="\\label{fig:FigItaconateCorrelation} Correlation between Irg1 mRNA expression and itaconate abundance", cache=FALSE}
+plot(p_itaconate_mRNAvsMET)
+``` 
+ 
+ 
+
+```{r FigItaconateCorrelationTop10, echo=FALSE, fig.cap="\\label{fig:FigItaconateCorrelationTop10} (left) Top 10 correlations of Irg1 mRNA expression against all metabolites. (right) Top 10 correlations of itaconate abundance against all mRNAs", cache=FALSE}
+gridExtra::grid.arrange(p1, p2, layout_matrix = matrix(c(1, 2, 2), ncol = 3))
+``` 
+ 
+ 
+
+Figure \ref{fig:FigItaconatePathway} shows the itaconate pathway response profiles, Figure \ref{fig:FigItaconateCorrelation} shows the 
+Irg1 mRNA vs Itaconate metabolite correlation, and Figure \ref{fig:FigItaconateCorrelation} shows the top 10 correlations for Irg1 mRNA and
+Itaconate.
+
+## Polyamine pathway
+```{r PolyamineFigures, message=FALSE, warning=FALSE, size="scriptsize"}
+#  * Sub-Section * Polyamine metabolic network
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+col <- attr(idmaps[["MRNA"]], "colors")
+names(col) <- names(idmaps[["MRNA"]])
+
+sel_matrix <- matrix(c(
+  "MRNA", "Nos2",
+  "MRNA", "Arg1",
+  "MRNA", "Arg2",
+  "MRNA", "Gatm",
+  "MRNA", "Oat",
+  "MRNA", "Odc1",
+  "MRNA", "Otc",
+  "MRNA", "Ass1",
+  "MRNA", "Sat1",
+  "MRNA", "Sat2",
+  "MRNA", "Srm",
+  "MRNA", "Sms",
+  "METABOLITE", "(N(1) + N(8))-acetylspermidine",
+  "METABOLITE", "spermine",
+  "METABOLITE", "spermidine",
+  "METABOLITE", "putrescine",
+  "METABOLITE", "N-acetylputrescine",
+  "METABOLITE", "arginine",
+  "METABOLITE", "creatine",
+  "METABOLITE", "creatinine",
+  "METABOLITE", "creatine phosphate",
+  "METABOLITE", "guanidinoacetate",
+  "METABOLITE", "4-guanidinobutanoate",
+  "METABOLITE", "guanidinosuccinate",
+  "METABOLITE", "beta-guanidinopropanoate",
+  "METABOLITE", "N-acetylarginine",
+  "METABOLITE", "ornithine",
+  "METABOLITE", "urea",
+  "METABOLITE", "citrulline",
+  "METABOLITE", "argininosuccinate",
+  "METABOLITE", "proline"
+),
+byrow = TRUE, ncol = 2
+)
+
+p_polyamine_pathway <- list()
+for (i in 1:nrow(sel_matrix)) {
+  idmap_sel <- idmaps[[sel_matrix[i, 1]]]
+  gene_sel <- sel_matrix[i, 2]
+
+  if (gene_sel %in% idmap_sel[[1]]$nodeLabel) {
+    dat <- data.frame(
+      fc = as.numeric(getFromIDMAP(idmap_sel, gene_sel, type = "foldChange", exact = TRUE)),
+      apv = as.numeric(getFromIDMAP(idmap_sel, gene_sel, type = "adj.p.value", exact = TRUE)),
+      contrasts = names(idmap_sel)
+    )
+    dat$sig <- ifelse(dat$apv < 0.05, "*", "")
+    dat$contrasts <- factor(dat$contrasts, levels = dat$contrasts)
+ 
+    p <- ggplot(aes(x = contrasts, y = fc, fill = contrasts), data = dat) +
+      geom_bar(stat = "identity", width = 0.7) +
+      scale_fill_manual("", values = col, guide = FALSE) +
+      geom_text(aes(x = contrasts, y = fc + (max(abs(fc)) / 30 * sign(fc)), label = sig), data = dat, colour = "black") +
+      labs(x = "", y = "log2 fold-change", title = gene_sel) +
+      theme_bw() +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+    p1 <- p +
+      theme(
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank()
+      )
+    p_polyamine_pathway[[gene_sel]] <- p1
+
+    file <- file.path(reportDir, paste0("P15038_LungManuscript_PolyaminePathwayExpression_", gene_sel, ".png"))
+    png(file = file, width = 2, height = 2, res = 200, units = "in")
+    print(p1)
+    dev.off()
+  } else {
+    cat("Did not find ", gene_sel, "\n")
+  }
+}
+```
+
+```{r FigPolyaminePathway, echo=FALSE, fig.cap="\\label{fig:FigPolyaminePathway} Polyamine metabolic pathway.", fig.height = 8, cache=FALSE}
+egg::ggarrange(plots = p_polyamine_pathway, ncol = 3)
+```
+
+Figure \ref{fig:FigPolyaminePathway} shows the polyamine pathway response profiles.
+
+## Expression profiles for selected immune-related miRNAs
+```{r miRFigure, message=FALSE, warning=FALSE, size="scriptsize"}
+sel_genes <- rev(c("mmu-miR-146a-5p", "mmu-miR-21a-5p", "mmu-miR-2137"))
+
+idmap <- idmaps[["MIRNA"]]
+sig_mir <- unique(unlist(lapply(getDEG(idmap), function(x) as.character(x$nodeLabel))))
+sig_mir <- sig_mir[!is.na(sig_mir)]
+
+p <- getIDMAPheatmapGG(idmap, sel_genes, cluster.row = FALSE, cex.labx = 2, cex.laby = 1.5, title = NULL, 
+                       col.lab = "black", object.only = TRUE)
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_microRNA_HM.pdf"), width = 5, height = 2)
+print(p)
+dev.off()
+```
+
+```{r FigMIRNA, echo=FALSE, fig.cap="\\label{fig:FigMIRNA} Expression profiles for selected immune-related miRNAs.", fig.height = 3, cache=FALSE}
+print(p)
+```
+
+Figure \ref{fig:FigPolyaminePathway} shows the polyamine pathway response profiles.
+
+# Oxidative stress-related effects
+## Activation of hemoglobin–biliverdin–bilirubin pathway
+
+```{r HmoxBilirubinFigures, message=FALSE, warning=FALSE, size="scriptsize"}
+#  * Sub-Section * Bilirubin metabolic network
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+col <- attr(idmaps[["MRNA"]], "colors")
+names(col) <- names(idmaps[["MRNA"]])
+
+sel_matrix <- matrix(c(
+  "MRNA", "Hmox1",
+  "MRNA", "Hmox2",
+  "PROTEIN", "Hmox1",
+  "PROTEIN", "Hmox2",
+  "PROTEIN", "Blvrb",
+  "MRNA", "Blvrb",
+  "MRNA", "Fth1",
+  "MRNA", "Ftl1",
+  "PROTEIN", "Fth1",
+  "PROTEIN", "Ftl1",
+  "METABOLITE", "bilirubin",
+  "METABOLITE", "biliverdin"
+),
+byrow = TRUE, ncol = 2
+)
+
+p_hmox_pathway <- list()
+for (i in 1:nrow(sel_matrix)) {
+  idmap_sel <- idmaps[[sel_matrix[i, 1]]]
+  gene_sel <- sel_matrix[i, 2]
+
+  if (gene_sel %in% idmap_sel[[1]]$nodeLabel) {
+    dat <- data.frame(
+      fc = as.numeric(getFromIDMAP(idmap_sel, gene_sel, type = "foldChange", exact = TRUE)),
+      apv = as.numeric(getFromIDMAP(idmap_sel, gene_sel, type = "adj.p.value", exact = TRUE)),
+      contrasts = names(idmap_sel)
+    )
+    dat$sig <- ifelse(dat$apv < 0.05, "*", "")
+    dat$contrasts <- factor(dat$contrasts, levels = dat$contrasts)
+
+    p <- ggplot(aes(x = contrasts, y = fc, fill = contrasts), data = dat) +
+      geom_bar(stat = "identity", width = 0.7) +
+      scale_fill_manual("", values = col, guide = FALSE) +
+      geom_text(aes(x = contrasts, y = fc + (max(abs(fc)) / 30 * sign(fc)), label = sig), data = dat, colour = "black") +
+      labs(x = "", y = "log2 fold-change", title = paste0(gene_sel, " ", sel_matrix[i, 1])) +
+      theme_bw() +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+    p1 <- p +
+      theme(
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        title = element_text(size = 8)
+      )
+    p_hmox_pathway[[gene_sel]] <- p1
+
+    file <- file.path(reportDir, paste0("P15038_LungManuscript_BilirubinPathwayExpression_", sel_matrix[i, 1], "_", gene_sel, ".png"))
+    png(file = file, width = 2, height = 2, res = 200, units = "in")
+    print(p1)
+    dev.off()
+  } else {
+    cat("Did not find ", gene_sel, "\n")
+  }
+}
+```
+
+```{r HmoxBilirubinFigure, echo=FALSE, fig.cap="\\label{fig:HmoxBilirubinFigure} Hemoglobin–biliverdin–bilirubin pathway.", fig.height = 8, cache=FALSE}
+egg::ggarrange(plots = p_hmox_pathway, ncol = 3)
+```
+
+Figure \ref{fig:HmoxBilirubinFigure} shows the hemoglobin–biliverdin–bilirubin pathway response profiles.
+
+## Oxidative stress-related metabolites, proteins, and network
+```{r OxStressFigures, message=FALSE, warning=FALSE, size="scriptsize"}
+#  * Sub-Section *  Ox Stress metabolites
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# metabolites
+dat <- dats[["METABOLITE"]]
+idmap <- idmaps[["METABOLITE"]]
+
+# metabolite selection, based on Metabolon report
+met_sel <- c(
+  "glutathione, reduced (GSH)",
+  "glutathione, oxidized (GSSG)",
+  "cysteine-glutathione disulfide",
+  "cystathionine",
+  "N-acetylmethionine sulfoxide",
+  "methionine sulfoxide",
+  "alpha-tocopherol"
+)
+
+p <- getIDMAPheatmapGG(idmap, met_sel,
+  title = "", cluster.row = FALSE, col.group = NULL,
+  cex.labx = 1.7, cex.laby = 1.4, col.lab = "black", cex.facet = 1.2, 
+  object.only = TRUE
+) +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 10),
+    axis.text.y = element_text(angle = 0, vjust = 0.5, hjust = 1, size = 10)
+  )
+p_oxstress_met <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_OxStress_Metabolites_HM.pdf"), width = 5.3, height = 3)
+print(p_oxstress_met)
+dev.off()
+
+#  * Sub-Section *  Ox stress gene / protein sets
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# proteins
+idmap <- idmaps[["PROTEIN"]]
+
+sig_genes <- unique(unlist(lapply(getDEG(idmap), function(x) as.character(x$nodeLabel))))
+sig_genes <- sig_genes[!is.na(sig_genes)]
+
+gsc_h <- getGMT_GS("../DATA/EXTERNAL/h.all.v6.2.symbols.gmt")
+gsc_c2 <- getGMT_GS("../DATA/EXTERNAL/c2.all.v6.2.symbols.gmt")
+
+sel_genes <- gsc_h[["HALLMARK_REACTIVE_OXIGEN_SPECIES_PATHWAY"]]
+sel_genes <- c(sel_genes, gsc_c2[["KEGG_METABOLISM_OF_XENOBIOTICS_BY_CYTOCHROME_P450"]])
+sel_genes <- GetOrtholog(sel_genes, species_from = "Hs", species_to = "Mm")
+sel_genes <- unique(sel_genes)
+sel_genes <- sel_genes[!is.na(sel_genes)]
+
+p <- getIDMAPheatmapGG(idmap, intersect(sel_genes, sig_genes), cluster.row = TRUE, cex.labx = 2, cex.laby = 1.5, 
+                       title = NULL, col.lab = "black", object.only = TRUE)
+p_oxstress_prot <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_OxStressXeno_Proteins_HM.pdf"), width = 5, height = 5)
+print(p_oxstress_prot)
+dev.off()
+
+# mRNAs
+idmap <- idmaps[["MRNA"]]
+sig_genes <- unique(unlist(lapply(getDEG(idmap), function(x) as.character(x$nodeLabel))))
+sig_genes <- sig_genes[!is.na(sig_genes)]
+
+gsc_h <- getGMT_GS("../DATA/EXTERNAL/h.all.v6.2.symbols.gmt")
+gsc_c2 <- getGMT_GS("../DATA/EXTERNAL/c2.all.v6.2.symbols.gmt")
+
+sel_genes <- gsc_h[["HALLMARK_REACTIVE_OXIGEN_SPECIES_PATHWAY"]]
+sel_genes <- c(sel_genes, gsc_c2[["KEGG_METABOLISM_OF_XENOBIOTICS_BY_CYTOCHROME_P450"]])
+sel_genes <- GetOrtholog(sel_genes, species_from = "Hs", species_to = "Mm")
+sel_genes <- unique(sel_genes)
+sel_genes <- sel_genes[!is.na(sel_genes)]
+
+p <- getIDMAPheatmapGG(idmap, intersect(sel_genes, sig_genes), cluster.row = TRUE, cex.labx = 2, 
+                       cex.laby = 1.5, title = NULL, col.lab = "black", object.only = TRUE)
+p_oxstress_mRNA <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_OxStressXeno_mRNAs_HM.pdf"), width = 5, height = 8)
+print(p_oxstress_mRNA)
+dev.off()
+
+nw_name <- "CST / Oxidative Stress"
+sel_nw <- which(npa_list$networks() == nw_name)
+npa <- subset(npa_list, sel_nw, NULL)
+
+file <- file.path(reportDir, "P15038_LungManuscriptOxStress_NPA.pdf")
+pdf(file = file, width = 5, height = 6, useDingbats = FALSE)
+barplot(npa, 
+        legend.text = FALSE,
+        col = attr(idmaps[["MRNA"]], "colors"),
+        bg = "white",
+        main = nw_name)
+dev.off()
+
+```
+
+
+```{r FigureOxStressMet, echo=FALSE, fig.cap="\\label{fig:FigureOxStressMet} Oxidative stress-related metabolites. ",  cache=FALSE}
+print(p_oxstress_met)
+```
+
+```{r FigureOxStressProt, echo=FALSE, fig.cap="\\label{fig:FigureOxStressProt} Oxidative stress-related proteins.",  cache=FALSE}
+print(p_oxstress_prot)
+```
+
+```{r FigureOxStressMRNA, echo=FALSE, fig.cap="\\label{fig:FigureOxStressMRNA} Oxidative stress-related mRNA transcripts.",  cache=FALSE}
+print(p_oxstress_mRNA)
+```
+
+```{r FigNPAOxStress, echo=FALSE, fig.cap="\\label{fig:FigNPAOxStress} Perturbation of the oxidative stress network.", cache=FALSE}
+barplot(npa, 
+        legend.text = FALSE,
+        col = attr(idmaps[["MRNA"]], "colors"),
+        bg = "white",
+        main = nw_name)
+```
+
+
+Figure \ref{fig:FigureOxStressMet} shows the response profiles of oxidative-stress related metabolites, 
+Figure \ref{fig:FigureOxStressProt} shows the response profiles of oxidative-stress related proteins, and
+Figure \ref{fig:FigureOxStressMRNA} shows the response profiles of oxidative-stress related mRNA transcripts.
+Figure \ref{fig:FigNPAOxStress} shows the perturbation of the oxidative stress network (based on transcriptomics data).
+
+# Effects on lipid metabolism
+## Lipid abundance for PEs and LPEs, glycerophospholipid metabolism, and surfactant
+```{r LipidMetabolism, message=FALSE, warning=FALSE, size="scriptsize"}
+
+#  * Sub-Section *  FA metabolism
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# KEGG fatty acid biosynthesis pathway
+# KEGG fatty acid degradation
+idmap <- idmaps[["PROTEIN"]]
+
+sig_genes <- unique(unlist(lapply(getDEG(idmap), function(x) as.character(x$nodeLabel))))
+sig_genes <- sig_genes[!is.na(sig_genes)]
+
+gsc_c2 <- getGMT_GS("../DATA/EXTERNAL/c2.all.v6.2.symbols.gmt")
+
+sel_genes <- gsc_c2[["KEGG_FATTY_ACID_METABOLISM"]]
+sel_genes <- GetOrtholog(sel_genes, species_from = "Hs", species_to = "Mm")
+sel_genes <- unique(sel_genes)
+sel_genes <- sel_genes[!is.na(sel_genes)]
+
+p <- getIDMAPheatmapGG(idmap, intersect(sel_genes, sig_genes), cluster.row = TRUE, cex.labx = 2, 
+                       cex.laby = 1.5, title = NULL, col.lab = "black", object.only = TRUE)
+p_FAMet_proteins <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_FA-METABOLISM_Proteins_HM.pdf"), width = 5, height = 5)
+print(p_FAMet_proteins)
+dev.off()
+
+#  * Sub-Section * surfactant
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+idmap <- idmaps[["PROTEIN"]]
+sel_surfactant_proteins <- c(
+  "Sftpd", "Sftpa1", "Lpcat1", "Slc34a2", "Abca3", "Sftpc",
+  "Sftpb", "Prdx6"
+)
+
+sig_genes <- unique(unlist(lapply(getDEG(idmap), function(x) as.character(x$nodeLabel))))
+sig_genes <- sig_genes[!is.na(sig_genes)]
+
+sel_genes <- sel_surfactant_proteins
+sel_genes <- unique(sel_genes)
+sel_genes <- sel_genes[!is.na(sel_genes)]
+
+p <- getIDMAPheatmapGG(idmap, intersect(sel_genes, sig_genes), cluster.row = TRUE, 
+                       cex.labx = 2, cex.laby = 1.5, title = NULL, col.lab = "black",
+                       object.only = TRUE)
+p_surfactant_proteins <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_Surfactant_Proteins_HM.pdf"), width = 5, height = 3.7)
+print(p_surfactant_proteins)
+dev.off()
+
+idmap <- idmaps[["MRNA"]]
+sig_genes <- unique(unlist(lapply(getDEG(idmap), function(x) as.character(x$nodeLabel))))
+sig_genes <- sig_genes[!is.na(sig_genes)]
+
+sel_genes <- sel_surfactant_proteins
+sel_genes <- unique(sel_genes)
+sel_genes <- sel_genes[!is.na(sel_genes)]
+
+p <- getIDMAPheatmapGG(idmap, intersect(sel_genes, sig_genes), cluster.row = TRUE, cex.labx = 2, 
+                       cex.laby = 1.5, title = NULL, col.lab = "black", object.only = TRUE)
+p_surfactant_MRNAs <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_Surfactant_mRNAs_HM.pdf"), width = 5, height = 4.7)
+print(p_surfactant_MRNAs)
+dev.off()
+
+# surfactant lipids
+# PC 16:0/16:0
+# PC 16:0/16:1
+# PC 14:0/16:0
+
+# PG 16:0/16:0
+# PG 16:0/18:1
+# PG 16:0/16:2
+
+idmap <- idmaps[["LIPID"]]
+sig_mets <- unique(unlist(lapply(getDEG(idmap), function(x) as.character(x$nodeLabel))))
+sig_mets <- sig_mets[!is.na(sig_mets)]
+sel_mets <- c("PC 32:0", "PC 32:1", "PC 30:0", "PG 32:0", "PG 34:1", "PG 34:2")
+
+p <- getIDMAPheatmapGG(idmap, intersect(sel_mets, sig_mets), cluster.row = FALSE, cex.labx = 2, 
+                       cex.laby = 1.5, title = NULL, col.lab = "black", object.only = TRUE)
+p_surfactant_lipids <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_Surfactant_Lipids_HM.pdf"), width = 5, height = 3)
+print(p_surfactant_lipids)
+dev.off()
+
+#  * Sub-Section *  Lipid metabolism imbalance
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0092498
+# http://erj.ersjournals.com/content/46/5/1451
+
+# Lipids
+compound_dat <- readr::read_delim("../DATA/EXTERNAL/cmp_extracted.table.txt", "\t", col_names = FALSE) %>% 
+    as.data.frame()
+colnames(compound_dat) <- c("cpn_ID", "names")
+compound_dat$label <- getsplit(compound_dat$names, ";", 1)
+lipid2kegg <- read.csv("../DATA/P15038_LungManuscript_LipidMappingTable3_bt.csv")
+
+idmap <- idmaps[["LIPID"]]
+sig_mets <- unique(unlist(lapply(getDEG(idmap), function(x) as.character(x$nodeLabel))))
+sig_mets <- sig_mets[!is.na(sig_mets)]
+
+sel_mets_LPE <- grep("^LPE ", idmap[[1]]$nodeLabel, value = TRUE)
+sel_mets_PE <- grep("^PE ", idmap[[1]]$nodeLabel, value = TRUE)
+sel_mets <- c(sel_mets_LPE, sel_mets_PE)
+
+p <- getIDMAPheatmapGG(idmap, rev(intersect(sel_mets, sig_mets)), cluster.row = FALSE, cex.labx = 2, 
+                       cex.laby = 1.5, title = NULL, col.lab = "black", object.only = TRUE)
+p_lpe_pe_lipids <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_LPE_Lipids_HM.pdf"), width = 5, height = 7)
+print(p_lpe_pe_lipids)
+dev.off()
+
+#  * Sub-Section *  LIPID CLASS SUMMARY STAT HEATMAP
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dat <- dats[["LIPID"]]
+X <- (2^dat$data) - 1
+X[is.na(X)] <- 0
+lc <- getsplit(rownames(X), " ", 1)
+X <- do.call(rbind, by(X, lc, function(x) apply(x, 2, sum, na.rm = TRUE)))
+X <- log2(X)
+idmap <- getLimmaResults(X, dat$L, dat$CO, covariates = NULL, include.ordinary.pvalues = TRUE)
+idmap <- lapply(idmap, function(tmp) {
+  tmp$moderated.adj.p.value <- tmp$adj.p.value
+  tmp$moderated.p.value <- tmp$p.value
+  tmp$moderated.t <- tmp$t
+  tmp$adj.p.value <- tmp$ord.adj.p.value
+  tmp$p.value <- tmp$ord.p.value
+  tmp$t <- tmp$ord.t
+  return(tmp)
+})
+names(idmap) <- gsub(" vs.+", "", names(idmap))
+
+p <- getIDMAPheatmapGG(idmap, 
+                       idmap[[1]]$nodeLabel, 
+                       cluster.row = FALSE, 
+                       cex.labx = 2, 
+                       cex.laby = 1.5, 
+                       title = NULL, 
+                       col.lab = "black", 
+                       object.only = TRUE)
+p_lipid_class_hm <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_LipidClass_HM.pdf"), width = 5, height = 4)
+print(p_lipid_class_hm)
+dev.off()
+
+#  * Sub-Section * phosphoglycerolipid pathway etc
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+idmap <- idmaps[["MRNA"]]
+
+sig_genes <- unique(unlist(lapply(getDEG(idmap), function(x) as.character(x$nodeLabel))))
+sig_genes <- sig_genes[!is.na(sig_genes)]
+
+gsc_c2 <- getGMT_GS("../DATA/EXTERNAL/c2.all.v6.2.symbols.gmt")
+
+sel_genes <- gsc_c2[["KEGG_GLYCEROPHOSPHOLIPID_METABOLISM"]]
+sel_genes <- GetOrtholog(sel_genes, species_from = "Hs", species_to = "Mm")
+
+#complement
+sel_genes <- c(sel_genes, "Pisd", "Pla2g7", "Lpcat1", "Pld3", "Pla2g2d", "Lpcat2b", "Pnpla7", "Lcat")
+sel_genes <- unique(sel_genes)
+sel_genes <- sel_genes[!is.na(sel_genes)]
+
+p_glycerolipid_met <- getIDMAPheatmapGG(idmap, intersect(sel_genes, sig_genes), cluster.row = TRUE, 
+                                        cex.labx = 2, cex.laby = 1.5, title = NULL, col.lab = "black",
+                                        object.only = TRUE)
+pdf(file = file.path(reportDir, "P15038_LungManuscript_GLYCEROPHOSPHOLIPID_METABOLISM_mRNAs_HM.pdf"), width = 5, height = 4.9)
+print(p_glycerolipid_met)
+dev.off()
+
+sel_genes <- gsc_c2[["REACTOME_CHOLESTEROL_BIOSYNTHESIS"]]
+sel_genes <- GetOrtholog(sel_genes, species_from = "Hs", species_to = "Mm")
+sel_genes <- unique(sel_genes)
+sel_genes <- sel_genes[!is.na(sel_genes)]
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_REACTOME_CHOLESTEROL_BIOSYNTHESIS_mRNAs_HM.pdf"), width = 5, height = 4.7)
+getIDMAPheatmapGG(idmap, intersect(sel_genes, sig_genes), cluster.row = TRUE, cex.labx = 2, 
+                  cex.laby = 1.5, title = NULL, col.lab = "black", object.only = TRUE)
+dev.off()
+
+sel_genes <- gsc_c2[["KEGG_FATTY_ACID_METABOLISM"]]
+sel_genes <- GetOrtholog(sel_genes, species_from = "Hs", species_to = "Mm")
+sel_genes <- unique(sel_genes)
+sel_genes <- sel_genes[!is.na(sel_genes)]
+
+p <- getIDMAPheatmapGG(idmap, 
+                       intersect(sel_genes, sig_genes), 
+                       cluster.row = TRUE, 
+                       cex.labx = 2, 
+                       cex.laby = 1.5, 
+                       title = NULL, 
+                       col.lab = "black")
+p_fa_met_mRNAs <- p
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_KEGG_FATTY_ACID_METABOLISM_mRNAs_HM.pdf"), width = 5, height = 4.7)
+print(p_fa_met_mRNAs)
+dev.off()
+```
+
+
+```{r FigureSurfactantProts, echo=FALSE, fig.cap="\\label{fig:FigureSurfactantProts} Abundance profiles of surfactant proteins.",  cache=FALSE}
+print(p_surfactant_proteins)
+```
+
+```{r FigureSurfactantMRNAs, echo=FALSE, fig.cap="\\label{fig:FigureSurfactantMRNAs} Expression profiles of surfactant mRNA transcripts.",  cache=FALSE}
+print(p_surfactant_MRNAs)
+```
+
+```{r FigureSurfactantLipids, echo=FALSE, fig.cap="\\label{fig:FigureSurfactantLipids} Abundance profiles of candidate surfactant lipids.",  cache=FALSE}
+print(p_surfactant_lipids)
+```
+
+```{r FigureLPELipids, echo=FALSE, fig.cap="\\label{fig:FigureLPELipids} Oxidative stress-related mRNA transcripts.",  cache=FALSE}
+print(p_lpe_pe_lipids)
+```
+
+```{r FigureLipidClass, echo=FALSE, fig.cap="\\label{fig:FigureLipidClass} Lipid class heatmap.",  cache=FALSE}
+print(p_lipid_class_hm)
+```
+
+```{r FigureFAProteins, echo=FALSE, fig.cap="\\label{fig:FigureFAProteins} Expression of proteins involved in FA metabolism.",  cache=FALSE}
+print(p_FAMet_proteins)
+```
+
+```{r FigureFAMRNAS, echo=FALSE, fig.cap="\\label{fig:FigureFAMRNAS} Expression of genes involved in FA metabolism.",  cache=FALSE}
+print(p_fa_met_mRNAs)
+```
+
+```{r FigurePLMRNAS, echo=FALSE, fig.cap="\\label{fig:FigurePLMRNAS} Expression of genes involved in glycerophospholipid metabolism.",  cache=FALSE}
+print(p_glycerolipid_met)
+```
+
+
+# Additional 
+```{r AddFigureNucleotide, message=FALSE, warning=FALSE, size="scriptsize"}
+idmap <- idmaps[["METABOLITE"]]
+sig_mets <- unique(unlist(lapply(getDEG(idmap), function(x) as.character(x$nodeLabel))))
+sig_mets <- sig_mets[!is.na(sig_mets)]
+
+I_met <- dats[["METABOLITE"]]$I_metabolite
+sel_mets <- I_met[I_met$SUPER_PATHWAY == "Nucleotide", "BIOCHEMICAL"]
+
+pdf(file = file.path(reportDir, "P15038_LungManuscript_Nucleotides_HM.pdf"), width = 5, height = 5)
+getIDMAPheatmapGG(idmap, intersect(sel_mets, sig_mets), cluster.row = FALSE, cex.labx = 2, 
+                  cex.laby = 1.5, title = NULL, col.lab = "black", object.only = TRUE)
+dev.off()
+```
+
+```{r C1qtnf4Question, message=FALSE, warning=FALSE, size="scriptsize"}
+    # got question, whether C1qtnf4 detected by proteomics
+    all_detected <- unique(unlist(lapply(idmaps[["PROTEIN"]], function(x) {
+        as.character(x$nodeLabel)
+    })))
+    "Grb2" %in% all_detected
+    "C1qtnf4" %in% all_detected
+```
+
+
+# Competing Interests statement
+The work reported in the associated publication involved candidate/potential modified risk tobacco products developed by PMI and was solely funded by PMI. Except for B.K., all authors are (or were) employees of PMI R&D or worked for PMI R&D under contractual agreements. B.K. is an employee of Metabolon Inc.
+
+# Version information
+```{r echo=FALSE, message=FALSE, warning=FALSE, size="scriptsize"}
+    si <- sessionInfo()
+    si2 <- devtools::session_info()
+    save(si, file = file.path(reportDir, 
+                              paste0("P15038_LungManuscript_SessionInfo_",
+                                      format(Sys.time(), '%d%B%Y'),
+                                     ".rda")))
+    save(si2, file = file.path(reportDir, 
+                              paste0("P15038_LungManuscript_SessionInfoDevTools_",
+                                      format(Sys.time(), '%d%B%Y'),
+                                     ".rda")))
+    write.csv2(si2$packages, file = file.path(reportDir, 
+                              paste0("P15038_LungManuscript_SessionInfoDevTools_",
+                                      format(Sys.time(), '%d%B%Y'),
+                                     ".csv")))
+    print(si)
+```
