@@ -1,4 +1,4 @@
-# Multi-omics systems toxicology of lung tissue reveals reduced biological effects of two heat-not-burn tobacco products compared with cigarette smoke
+# Multi-omics systems toxicology study of mouse lung tissue assessing the biological effects of aerosols from two heat-not-burn tobacco products and cigarette smoke
 
 This repository contains the R analysis code and R data objects for
 the analysis of lung multi-omics data reported in Titz et
@@ -135,7 +135,7 @@ dir.create(project_folder)
 setwd(project_folder)
 
 #download from github
-download.file(url = "https://github.com/philipmorrisintl/MouseLungMultiOmics/releases/download/1.0.0/1.0.0.zip", 
+download.file(url = "https://github.com/philipmorrisintl/MouseLungMultiOmics/archive/1.0.1.zip", 
               destfile = "Lung_MultiOmics.zip")
               
 #unzip
@@ -236,9 +236,8 @@ For the shared data (DATA/ & INFO/ folders) :
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>.
 
 ## References
-Titz et al. Multi-omics systems toxicology of lung tissue reveals
-reduced biological effects of two heat-not-burn tobacco products
-compared with cigarette smoke. *submitted*
+Titz et al. Multi-omics systems toxicology study of mouse lung tissue assessing the biological effects of 
+aerosols from two heat-not-burn tobacco products and cigarette smoke. *submitted*
 
   
 ## Related Repositories
