@@ -135,7 +135,7 @@ dir.create(project_folder)
 setwd(project_folder)
 
 #download from github
-download.file(url = "https://github.com/philipmorrisintl/MouseLungMultiOmics/archive/1.0.1.zip", 
+download.file(url = "https://github.com/philipmorrisintl/MouseLungMultiOmics/archive/1.0.1/1.0.1.zip", 
               destfile = "Lung_MultiOmics.zip")
               
 #unzip
